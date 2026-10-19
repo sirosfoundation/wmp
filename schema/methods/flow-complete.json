@@ -16,7 +16,14 @@
         "flow_id": { "type": "string" },
         "result": {
           "type": "object",
-          "description": "Flow-type-specific result data."
+          "description": "Flow-type-specific result data.",
+          "properties": {
+            "credential_metadata": { "type": "object", "description": "OpenID4VCI flows: the OpenID4VCI 1.1 response-level credential_metadata object, relayed verbatim. May carry secrets (org.siros.secret_seed): never log or retain it. Absent on a replayed completion, see credential_metadata_redacted." },
+            "credential_metadata_encrypted_response": { "type": "boolean", "description": "OpenID4VCI flows: true only when credential_metadata came in a JWE-encrypted issuer response." },
+            "credential_metadata_redacted": { "const": true, "description": "Set only on a replayed completion whose credential_metadata was withheld." }
+          },
+          "if": { "required": ["credential_metadata"], "properties": { "credential_metadata": { "required": ["org.siros.secret_seed"] } } },
+          "then": { "required": ["credential_metadata_encrypted_response"], "properties": { "credential_metadata_encrypted_response": { "const": true } } }
         }
       }
     }

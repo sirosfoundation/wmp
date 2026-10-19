@@ -117,5 +117,135 @@
       }
     },
     "notes": "The wallet should respond with a flow.complete containing the generated proof JWT."
+  },
+  {
+    "id": "flow-vci-complete-credential-metadata-seed",
+    "description": "OpenID4VCI completion (live) carrying response-level credential_metadata with org.siros.secret_seed and the encrypted flag.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "mso_mdoc",
+              "credential": "o2d2ZXJzaW9uYzEuMA"
+            }
+          ],
+          "credential_metadata": {
+            "org.siros.secret_seed": {
+              "nym": "00112233445566778899aabbccddeeff"
+            },
+            "display": [
+              {
+                "name": "Employee Card",
+                "locale": "en"
+              }
+            ]
+          },
+          "credential_metadata_encrypted_response": true
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "Live notification. The receiver preserves credential_metadata verbatim and may accept the seed because credential_metadata_encrypted_response is true. The seed is not retained in any replay buffer. The seed value is a test value."
+  },
+  {
+    "id": "flow-vci-complete-credential-metadata-deferred-display",
+    "description": "OpenID4VCI deferred completion: display-only credential_metadata, plain response, no encrypted flag.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "mso_mdoc",
+              "credential": "o2d2ZXJzaW9uYzEuMA"
+            }
+          ],
+          "credential_metadata": {
+            "display": [
+              {
+                "name": "Employee Card",
+                "locale": "en"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "Flag absent means the metadata arrived as plain JSON. Display-only metadata needs no encryption."
+  },
+  {
+    "id": "flow-vci-complete-replayed-redacted",
+    "description": "Replayed OpenID4VCI completion: credential_metadata and the encrypted flag withheld, marked redacted.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "mso_mdoc",
+              "credential": "o2d2ZXJzaW9uYzEuMA"
+            }
+          ],
+          "credential_metadata_redacted": true
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "Sent only from a replay buffer (Last-Event-ID or resume). The client must not infer that the issuer sent no metadata, and must treat a required secret as not delivered."
+  },
+  {
+    "id": "flow-vci-complete-seed-without-encrypted-flag-refused",
+    "description": "Negative: org.siros.secret_seed in a completion without credential_metadata_encrypted_response true.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "mso_mdoc",
+              "credential": "o2d2ZXJzaW9uYzEuMA"
+            }
+          ],
+          "credential_metadata": {
+            "org.siros.secret_seed": {
+              "nym": "00112233445566778899aabbccddeeff"
+            }
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "A wallet MUST refuse the issuance and store nothing from it. A conforming server never emits this shape; the vector is for the client."
   }
 ]
