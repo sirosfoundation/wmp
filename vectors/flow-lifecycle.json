@@ -149,12 +149,15 @@
               }
             ]
           },
-          "credential_metadata_encrypted_response": true
+          "credential_metadata_encrypted_response": true,
+          "refresh_token": "rt-test-value",
+          "dpop_jwk": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"test\",\"y\":\"test\",\"d\":\"test\"}",
+          "dpop_key_id": "dpop-key-1"
         }
       }
     },
     "expected_response": null,
-    "notes": "Live notification. The receiver preserves credential_metadata verbatim and may accept the seed because credential_metadata_encrypted_response is true. The seed is not retained in any replay buffer. The seed value is a test value."
+    "notes": "Live notification: the full completion. The receiver preserves credential_metadata verbatim and may accept the seed because credential_metadata_encrypted_response is true. None of the secret members (credential_metadata, its flag, refresh_token, dpop_jwk, dpop_key_id) is retained in any replay buffer. Values are test values."
   },
   {
     "id": "flow-vci-complete-credential-metadata-deferred-display",
@@ -192,7 +195,7 @@
   },
   {
     "id": "flow-vci-complete-replayed-redacted",
-    "description": "Replayed OpenID4VCI completion: credential_metadata and the encrypted flag withheld, marked redacted.",
+    "description": "Replayed OpenID4VCI completion: credential_metadata, its encrypted flag, refresh_token, dpop_jwk and dpop_key_id withheld, listed in redacted_members.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -210,12 +213,18 @@
               "credential": "o2d2ZXJzaW9uYzEuMA"
             }
           ],
-          "credential_metadata_redacted": true
+          "redacted_members": [
+            "credential_metadata",
+            "credential_metadata_encrypted_response",
+            "dpop_jwk",
+            "dpop_key_id",
+            "refresh_token"
+          ]
         }
       }
     },
     "expected_response": null,
-    "notes": "Sent only from a replay buffer (Last-Event-ID or resume). The client must not infer that the issuer sent no metadata, and must treat a required secret as not delivered."
+    "notes": "Sent only from a replay buffer (Last-Event-ID or resume). The client must treat every listed member as not recoverable: no inferring that the issuer sent none, no inventing a refresh token, DPoP key or seed; an issuance that required the seed is re-issued, and the credential cannot be renewed without re-issuance."
   },
   {
     "id": "flow-vci-complete-seed-without-encrypted-flag-refused",
@@ -247,5 +256,35 @@
     },
     "expected_response": null,
     "notes": "A wallet MUST refuse the issuance and store nothing from it. A conforming server never emits this shape; the vector is for the client."
+  },
+  {
+    "id": "flow-vci-complete-replayed-refresh-token-only",
+    "description": "Replayed completion where only refresh_token and dpop_key_id were present on the live one and are withheld.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-002",
+        "result": {
+          "credentials": [
+            {
+              "format": "vc+sd-jwt",
+              "credential": "eyJ0ZXN0"
+            }
+          ],
+          "redacted_members": [
+            "dpop_key_id",
+            "refresh_token"
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "Only the members that were present are listed. The client must not invent a refresh_token; the credential cannot be renewed without re-issuance."
   }
 ]
