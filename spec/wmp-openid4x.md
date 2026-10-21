@@ -354,7 +354,7 @@ The `oid4vp` flow is a *verifier-initiated* credential query: the verifier speci
 
 #### 3.2.5 Presentation Sign Sub-flow
 
-To obtain the VP token the orchestrator starts a nested `sign` flow with `action` `sign_presentation`, linked to the `oid4vp` flow by `parent_flow_id`, as for the OID4VCI sign sub-flow in Section 3.1.5. This section defines the members relevant to `transaction_data`; other members are defined by the implementation profile.
+To obtain the VP token the orchestrator starts a nested `sign` flow with `action` `sign_presentation`, linked to the `oid4vp` flow by `parent_flow_id`, as for the OID4VCI sign sub-flow in Section 3.1.5. This section defines the members relevant to `transaction_data`, plus the extension members of Section 7; other members are defined by the implementation profile.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -362,6 +362,9 @@ To obtain the VP token the orchestrator starts a nested `sign` flow with `action
 | `nonce` | string | REQUIRED | The verifier's `nonce` |
 | `audience` | string | REQUIRED | The verifier's client identifier |
 | `parent_flow_id` | string | REQUIRED | The `oid4vp` flow this sub-flow belongs to |
+| `client_metadata` | object | OPTIONAL | The verifier's `client_metadata`, verbatim. See Section 7.1. |
+| `verifier_jwk_thumbprint` | string | OPTIONAL | Thumbprint of the verifier's response-encryption key. See Section 7.2. |
+| `verifier_session_id` | string | OPTIONAL | The verifier's session identifier. See Section 7.3. |
 | `response_mode` | string | OPTIONAL | The `response_mode` of the verifier's request. Required for a request that carries `transaction_data` (EC TS12 puts it in the key binding JWT). |
 | `credentials_to_include` | object[] | OPTIONAL | Credentials already selected: `credential_id`, `credential_query_id`, `disclosed_claims` |
 | `transaction_data` | object[] | OPTIONAL | The request's transaction data, one entry per element of the verifier's array, in the verifier's order. Only present for a wallet that offered the `transaction_data` capability. |
@@ -417,6 +420,42 @@ Each `transaction_data` entry has these members:
 4. **Format.** EC TS12 version 1.0.1 covers SD-JWT VC only. For another credential format the wallet MUST fail the sub-flow rather than present without binding the transaction.
 
 The sub-flow completes with the VP token as in Section 3.1.5. The wallet is responsible for the remaining requirements of EC TS12 (display of the transaction, the `amr` claim, `jti`, logging); they are not carried in this protocol.
+
+#### 3.2.6 Refusing the Sign Sub-flow
+
+A wallet that will not sign (the user declined, the wallet does not trust the verifier, or a value the signature must bind is missing) ends the `sign` sub-flow with `wmp.flow.error` and `data.reason` `rejected`, the well-known reason of WMP Core Section 6.2 for a responder that declines. Any other `wmp.flow.error` is a failure, not a refusal.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "wmp.flow.error",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_id": "flow-vp-001-sign",
+    "code": -31006,
+    "message": "declined",
+    "data": {"reason": "rejected"}
+  }
+}
+```
+
+The orchestrator MUST end the `oid4vp` flow at once and MUST NOT wait for the sub-flow's timeout. It reports the refusal to the verifier as `access_denied` (OID4VP) with the request's `state` and **no** `error_description`, using the response mode of the request. `message` and any other `data` members of the sub-flow's `wmp.flow.error` stay between the wallet and the orchestrator: the orchestrator MUST NOT forward them to the verifier, since they may say why the wallet refused.
+
+Towards the wallet the `oid4vp` flow ends with a terminal `wmp.flow.error` on the parent flow, code `-31006`. This profile defines no `wmp.flow.complete` result for a refused presentation. When the response mode of the request produced a verifier redirect (for example `query` or `fragment`), its URL is carried in `data.redirect_uri`; `data` is omitted otherwise.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "wmp.flow.error",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_id": "flow-vp-001",
+    "code": -31006,
+    "message": "User declined the request",
+    "data": {"redirect_uri": "https://verifier.example.com/cb?error=access_denied&state=st-1"}
+  }
+}
+```
 
 ## 4. Complete OID4VCI Flow Example
 
@@ -537,6 +576,63 @@ Implementations MUST validate credential offers before processing:
 ### 6.5 Transaction Data
 
 `transaction_data` makes the user's consent legally significant (a payment authorization), so the display and the hash must describe the same bytes. Section 3.2.5 therefore has the wallet derive what it shows from `raw`, which is also what it hashes, and treat everything else the orchestrator sends as untrusted. Capability negotiation (Section 2.3) keeps the data away from wallets that would drop it silently; the orchestrator's refusal is the only barrier for those, so it MUST NOT be skipped for unauthenticated or "best effort" flows.
+
+## 7. Extension Members
+
+The members below are optional extension members in the sense of WMP Core Section 9.5: receivers MUST ignore them if they do not understand them, and senders MUST NOT require them to be understood. Adding a purely additive, ignorable member does not change the WMP protocol version or the version of any capability. A member whose processing is required for correctness or safety is not covered by the ignore rule: `transaction_data` and `response_mode` (for a request that carries transaction data) remain gated by the `transaction_data` capability (Section 2.3) and the fail-closed requirements of Section 3.2.5, as Core Section 9.5 rule 2 provides. This table is the registry of extension members of this profile; a new member is added here, with its location and semantics, in a MINOR revision of this document.
+
+| Member | Carried in | Type | Section | Since |
+|--------|-----------|------|---------|-------|
+| `client_metadata` | `sign` params (`sign_presentation`); matching request params; `credential_selection` progress payload | object | 7.1 | 0.1.0 |
+| `verifier_jwk_thumbprint` | `sign` params (`sign_presentation`) | string | 7.2 | 0.1.0 |
+| `verifier_session_id` | `sign` params (`sign_presentation`) | string | 7.3 | 0.1.0 |
+| `context` | `trust_evaluated` progress payload (when `verifier_trust_evaluated` is `true`) | object | 7.4 | 0.1.0 |
+| `response_mode` | `sign` params (`sign_presentation`) | string | 3.2.5 | 0.1.0 |
+| `transaction_data` | `sign` params (`sign_presentation`) | object[] | 3.2.5 (gated by the `transaction_data` capability) | 0.1.0 |
+
+### 7.1 `client_metadata`
+
+The verifier's OpenID4VP `client_metadata` JSON object, taken verbatim from the validated request object (inline, or fetched from `client_metadata_uri`). It carries what the orchestrator itself does not model, notably `vp_formats_supported`. For a `zkp_req` presentation (typically with `response_mode` `direct_post.jwt`) its `vp_formats_supported.zkp_req` holds the `system_id_values` and `proof_system_values` from which the wallet chooses its circuit and proof system.
+
+- The sender MUST omit the member when the request had no client metadata, that is, neither an inline `client_metadata` nor one resolved from `client_metadata_uri`. A request with only `client_metadata_uri` carries the fetched object.
+- The value is carried verbatim (Core Section 9.5 rule 4); the wallet MUST NOT assume any member beyond those it understands.
+- It is carried on the `sign` params of a `sign_presentation` action, and, where an implementation passes the request context to the wallet in a credential matching request or in the payload of a `credential_selection` progress message, in those too, with the same name and meaning. This profile does not otherwise define those messages.
+
+```json
+"client_metadata": {
+  "jwks": {"keys": []},
+  "vp_formats_supported": {
+    "zkp_req": {
+      "system_id_values": ["longfellow-libzk-v1"],
+      "proof_system_values": ["vega"]
+    }
+  }
+}
+```
+
+### 7.2 `verifier_jwk_thumbprint`
+
+The JWK Thumbprint (RFC 7638, SHA-256) of the verifier's response-encryption key, as an **unpadded base64url** string. For `response_mode` `direct_post.jwt` the member is never empty: the wallet uses it to build the OpenID4VP session transcript (the handover for mdoc). If the orchestrator cannot read that key it MUST fail the flow rather than send an empty value; go-wallet-backend fails the flow with a `SIGN_ERROR` flow error. This section defines the member for `direct_post.jwt` only; go-wallet-backend omits it for other response modes, and whether it is sent for another encrypted mode (for example `dc_api.jwt`, whose handover also needs the thumbprint) is not defined here.
+
+### 7.3 `verifier_session_id`
+
+The verifier-assigned identifier of this presentation session. A ZK pseudonym's verifier context binds to the session rather than to the verifier's static identity, so it needs this value rather than `audience` alone. Omitted for non-ZK presentations and for OID4VCI sign sub-flows.
+
+### 7.4 `context` (verifier trust result)
+
+When the engine evaluates verifier trust, the `verifier_trust_evaluated` flow progress (a `trust_evaluated` step whose payload has `verifier_trust_evaluated: true`) MAY carry `context`, containing only `verifier_ids` from the PDP response (omitted if none): a list of `{verifier_id_type, verifier_id, basis?}`, present only when the PDP policy enables it and the identifier was verified. Wallets read the verifier identifier for pseudonym derivation from it. For `x509_san_dns` the value is the bare lower-case DNS name, so the wallet forms the `x509_san_dns:<dns>` prefix itself; semantic ids already carry the `semantic_id:` prefix. Cache hits carry the same context as fresh evaluations.
+
+- The sender MUST NOT forward any other member of the PDP context (such as `reason` or `trust_metadata`), and omits `context` entirely when there are no `verifier_ids`.
+- `verifier_id_type` is an opaque string; `basis` says how the identifier was verified.
+
+```json
+"context": {
+  "verifier_ids": [
+    {"verifier_id_type": "semantic", "verifier_id": "semantic_id:VATSE-556000000101", "basis": "x5c-chain"},
+    {"verifier_id_type": "x509_san_dns", "verifier_id": "verifier.example.com", "basis": "client-id-binding"}
+  ]
+}
+```
 
 ## References
 

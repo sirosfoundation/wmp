@@ -126,6 +126,7 @@ If the responder does not support any version compatible with the initiator (dif
 - All messages within a session MUST use the negotiated version string.
 - A participant MUST NOT send features defined in a higher version than negotiated.
 - Implementations MUST ignore unknown fields in the `wmp` metadata object (forward compatibility).
+- The same rule applies to every other object in the protocol; see Section 9.5 (Extension Members).
 - The `wmp.version` field is REQUIRED in all messages to enable stateless routing by intermediaries.
 
 ## 3. Message Format
@@ -2518,6 +2519,18 @@ Custom capabilities follow the same pattern as standard capabilities and are dec
 ### 9.4 Protocol Extensions
 
 Protocol extensions are registered via capability negotiation and MUST be documented with their own specification.
+
+### 9.5 Extension Members
+
+Optional members MAY be added to the `params` and `result` objects of existing methods, flow types, flow steps and actions, and to other protocol objects, without changing the WMP protocol version (Section 2.2) and without a new capability. Such a member is an **extension member**. The following rules make this safe between peers that implement different revisions of a profile.
+
+1. **Receivers ignore unknown members.** A receiver MUST ignore any member of a protocol object that it does not understand: it MUST NOT reject the message, and MUST NOT treat the member as an error, because of it. A receiver that forwards an object it did not originate SHOULD forward unknown members unchanged.
+2. **Senders do not depend on understanding.** A sender MUST NOT require its peer to understand an extension member, and MUST be able to complete the exchange correctly if the member is dropped, unless the feature is negotiated: if the peer's understanding is needed for correctness or safety (for example, because dropping the member would silently change what the user is asked to approve), the member MUST be gated by a capability negotiated under Section 4.2, and the sender MUST NOT send it to a peer that did not offer that capability. The `transaction_data` capability of the OpenID4x profile is an example.
+3. **Optional means omitted, not null.** An extension member that has no value MUST be omitted. A receiver MUST treat an absent member as "not supplied", and SHOULD treat an explicit `null` for an extension member the same way unless its definition says otherwise.
+4. **Opaque values stay opaque.** An extension member that carries an object defined elsewhere (for example an OpenID4VP `client_metadata` object) is carried verbatim: an intermediary MUST NOT add, remove or reorder its members.
+5. **Naming.** A member name without a prefix is defined by this specification or by a WMP profile, and is listed in that document's extension table (for example Section 7 of [wmp-openid4x.md](wmp-openid4x.md)); adding a row to that table is a MINOR revision of the document that does not change the protocol version. Names defined outside WMP follow Section 9.1: a private or application-specific member MUST use a reverse-domain prefix (`org.acme.risk_score`) and MUST NOT use a prefix reserved in Section 9.1. A member name MUST NOT be reused with a different meaning.
+6. **Version and capability interplay.** Neither the protocol version nor a capability version is raised for a purely additive, ignorable member. A capability `versions` entry (for example `transaction_data`) is raised only when a peer must change behavior to remain correct, as in rule 2.
+7. **Schemas are open.** The published JSON Schemas (`schema/`) do not set `additionalProperties: false` on protocol objects, so a message carrying an extension member validates. Schemas remain strict for required members and constrained values (`required`, `enum`, `const`, `type`, `pattern`, `minimum`). The one `additionalProperties` keyword that remains, on the capabilities map, requires each custom capability value to be an object.
 
 ## 10. Conformance
 

@@ -40,8 +40,7 @@
           "properties": {
             "algorithm": { "type": "string", "enum": ["sha-256", "sha-384", "sha-512"] },
             "value": { "type": "string", "description": "Base64url-encoded (no padding) hash of UTF8(JCS(plaintext content object))." }
-          },
-          "additionalProperties": false
+          }
         }
       }
     }

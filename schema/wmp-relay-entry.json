@@ -30,6 +30,5 @@
       "enum": ["best_effort", "standard", "registered", "certified"],
       "description": "Service class of this relay hop."
     }
-  },
-  "additionalProperties": false
+  }
 }

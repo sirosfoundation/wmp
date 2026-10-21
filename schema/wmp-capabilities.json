@@ -13,8 +13,7 @@
           "minimum": 1,
           "description": "Maximum message body size in bytes."
         }
-      },
-      "additionalProperties": false
+      }
     },
     "flows": {
       "type": "object",
@@ -24,8 +23,7 @@
           "minimum": 1,
           "description": "Maximum number of concurrent flows."
         }
-      },
-      "additionalProperties": false
+      }
     },
     "sign": {
       "type": "object",
@@ -35,8 +33,7 @@
           "items": { "type": "string" },
           "description": "Supported proof types."
         }
-      },
-      "additionalProperties": false
+      }
     },
     "mcp": {
       "type": "object",
@@ -44,8 +41,7 @@
         "tools": { "type": "boolean" },
         "resources": { "type": "boolean" },
         "prompts": { "type": "boolean" }
-      },
-      "additionalProperties": false
+      }
     },
     "relay": {
       "type": "object",
@@ -55,8 +51,7 @@
           "items": { "type": "string" },
           "description": "Allowed destination patterns."
         }
-      },
-      "additionalProperties": false
+      }
     },
     "offline": {
       "type": "object",
@@ -71,8 +66,7 @@
           "minimum": 1,
           "description": "Queue retention in seconds."
         }
-      },
-      "additionalProperties": false
+      }
     },
     "resolve": {
       "type": "object",
@@ -82,8 +76,7 @@
           "items": { "type": "string" },
           "description": "Resolution types this endpoint can serve."
         }
-      },
-      "additionalProperties": false
+      }
     },
     "oid4vci": {
       "type": "object",
@@ -96,8 +89,7 @@
           "type": "array",
           "items": { "type": "string" }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "oid4vp": {
       "type": "object",
@@ -110,8 +102,7 @@
           "type": "array",
           "items": { "type": "string" }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "transaction_data": {
       "type": "object",
@@ -128,8 +119,7 @@
           "description": "transaction_data_hashes_alg names the wallet can compute, e.g. sha-256."
         }
       },
-      "required": ["versions"],
-      "additionalProperties": false
+      "required": ["versions"]
     }
   },
   "additionalProperties": {
