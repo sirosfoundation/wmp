@@ -543,5 +543,111 @@
     "expected_response": null,
     "must_refuse": true,
     "notes": "credential_count is 1 to 256; the server fails the issuance."
+  },
+  {
+    "id": "flow-sign-presentation-response-encryption",
+    "description": "Sign flow for a direct_post.jwt request carrying the verifier's response-encryption recipient and state.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-sign-001",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:issuer.example.com"
+        },
+        "flow_type": "sign",
+        "flow_id": "flow-vp-001-sign",
+        "params": {
+          "action": "sign_presentation",
+          "nonce": "bUtJdjJESWdmTWNjb011YQ",
+          "audience": "x509_san_dns:shop.example.com",
+          "parent_flow_id": "flow-vp-001",
+          "response_mode": "direct_post.jwt",
+          "response_encryption": {
+            "jwk": {
+              "kty": "EC",
+              "crv": "P-256",
+              "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+              "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
+              "kid": "verifier-enc-1",
+              "use": "enc"
+            },
+            "alg": "ECDH-ES",
+            "enc": "A128GCM"
+          },
+          "state": "st-1"
+        }
+      }
+    },
+    "notes": "The wallet builds the vp_token and the JARM claims (iss, aud from verified_request.client_id, iat, exp, vp_token, state) and encrypts them to jwk itself; the orchestrator only relays the JWE. Members are additive: a wallet that predates them answers with a vp_token, which the orchestrator refuses."
+  },
+  {
+    "id": "flow-sign-result-response-jwe",
+    "description": "Sign result of sign_presentation for direct_post.jwt: response_jwe and no vp_token.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "response_jwe": "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTEyOEdDTSIsImtpZCI6InZlcmlmaWVyLWVuYy0xIiwiY3R5IjoiSldUIn0..aXY.Y2lwaGVydGV4dA.dGFn"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "The orchestrator POSTs response=<jwe> (form-urlencoded) to the response_uri of verified_request and cannot decrypt the value. The jwe is a structurally valid test value, not decryptable."
+  },
+  {
+    "id": "flow-sign-result-response-jwe-with-vp-token-refused",
+    "description": "Negative: sign result carrying both response_jwe and vp_token.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "response_jwe": "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTEyOEdDTSIsImtpZCI6InZlcmlmaWVyLWVuYy0xIiwiY3R5IjoiSldUIn0..aXY.Y2lwaGVydGV4dA.dGFn",
+          "vp_token": "eyJ0ZXN0"
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "A cleartext vp_token must not accompany the encrypted response; the orchestrator refuses it, fails the flow and answers the verifier access_denied with no detail."
+  },
+  {
+    "id": "flow-sign-result-response-jwe-malformed-refused",
+    "description": "Negative: sign result whose response_jwe is not a five-segment compact JWE.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "response_jwe": "eyJ0ZXN0.c2lnbmF0dXJl"
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "A value that is not a compact JWE is refused: the flow fails and the verifier is answered access_denied with no detail."
   }
 ]

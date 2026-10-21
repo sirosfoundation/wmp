@@ -634,6 +634,9 @@ The members below are optional extension members in the sense of WMP Core Sectio
 | `context` | `trust_evaluated` progress payload (when `verifier_trust_evaluated` is `true`) | object | 7.4 | 0.1.0 |
 | `response_mode` | `sign` params (`sign_presentation`) | string | 3.2.5 | 0.1.0 |
 | `transaction_data` | `sign` params (`sign_presentation`) | object[] | 3.2.5 (gated by the `transaction_data` capability) | 0.1.0 |
+| `response_encryption` | `sign` params (`sign_presentation`, `response_mode` `direct_post.jwt` only) | object | 7.7 | 0.1.0 |
+| `state` | `sign` params (`sign_presentation`, together with `response_encryption`) | string | 7.7 | 0.1.0 |
+| `response_jwe` | `sign` result (`sign_presentation`, `response_mode` `direct_post.jwt` only) | string | 7.7 | 0.1.0 |
 
 ### 7.1 `client_metadata`
 
@@ -721,10 +724,36 @@ The OpenID4VP request as the orchestrator validated it. It is built once per flo
 
 A `did:web:verifier.example.com` request with no verifier policy decision point gives `"signed": false, "signature_verification": "deferred"`; a `redirect_uri` request gives `"signed": false, "signature_verification": "none"`.
 
-
 ### 7.6 Credential response encryption (OID4VCI)
 
 Members of the engine-blind issuance flow of Section 3.1.5.1: `credential_response_encryption` (`{alg, enc, required}`) in `generate_proof` params; `jwe` and `deferred` in `decrypt_credential_response` params; `credential_response_encrypted` in the completion result. The client's answers (`credential_response_encryption_jwk`, `transaction_id`, `interval`, `credential_count`, `error`) are members of the sign result. All are additive and ignorable (Core Section 9.5 rule 1): a wallet that does not implement them does not supply a key, which fails a `required` issuance closed and otherwise leaves the issuer response in clear and visible to the orchestrator. `credential_response_encrypted` removes `credentials[].credential` and `credential_metadata` from the completion; a receiver that does not know it would see credentials without values, so a wallet that cannot decrypt MUST NOT decline a `required` encryption.
+
+### 7.7 `response_encryption`, `state` and `response_jwe`
+
+For a `sign_presentation` action of a request whose `response_mode` is `direct_post.jwt`, the orchestrator does not receive the `vp_token`: the wallet builds the response and encrypts it itself, and the orchestrator only relays it. The `sign` params carry the recipient, and the `sign` result carries the finished JWE.
+
+`response_encryption` is an object `{jwk, alg, enc}`: `jwk` is the verifier's public response-encryption JWK (with its `kid` when it has one), `alg` the JWE key-management algorithm and `enc` the content-encryption algorithm. The orchestrator resolves them with its ordinary selection (the `use` `enc` key of `client_metadata.jwks`, else the key of the request object's `x5c` header; `alg` from `client_metadata`, else the JWK, else the key type; `enc` `A128GCM` unless `client_metadata` names another), so the wallet does not re-derive them. `state` is the request's `state`, omitted when the request had none.
+
+The wallet builds:
+
+- the `vp_token`: for a DCQL request a JSON object `{"<credential query id>": ["<presentation>", ...]}`, otherwise the string;
+- the JARM claims: `iss` `https://self-issued.me/v2`, `aud` the `client_id` of `verified_request` (Section 7.5), `iat`, `exp` (`iat` + 300), `vp_token`, and `state` when present;
+- a compact JWE of those claims to `jwk` with the requested `alg` and `enc`, `kid` in the protected header when `jwk` has one, and `cty` `JWT`.
+
+It answers the sign sub-flow with `response_jwe`, the compact JWE. The orchestrator POSTs `response=<jwe>` (form-urlencoded) to the `response_uri` of `verified_request` and returns the verifier's `redirect_uri`; the wallet never posts.
+
+- The orchestrator cannot decrypt the value and MUST NOT build or encrypt the response itself. A wallet that answers with a `vp_token`, with no `response_jwe`, or with a value that is not a compact JWE using the requested `alg` and `enc` (and `kid`) is refused: the orchestrator fails the flow and answers the verifier `access_denied` with no detail. If it cannot resolve a usable public key and algorithms it sends no sign request and does the same.
+- A sign result that reports an error carries no `response_jwe`.
+- The members are additive (Core Section 9.5 rule 1): a wallet that predates this section ignores `response_encryption` and answers with a `vp_token`, which the orchestrator refuses rather than encrypting for it. Other response modes (`direct_post`, `query`, `fragment`) are unchanged and the orchestrator sees the `vp_token`, as the verifier requested a cleartext response.
+
+```json
+"response_encryption": {
+  "jwk": {"kty": "EC", "crv": "P-256", "x": "...", "y": "...", "kid": "verifier-enc-1", "use": "enc"},
+  "alg": "ECDH-ES",
+  "enc": "A128GCM"
+},
+"state": "st-1"
+```
 
 ## References
 
