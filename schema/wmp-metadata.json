@@ -55,6 +55,5 @@
       "type": "string",
       "description": "Distributed tracing identifier."
     }
-  },
-  "additionalProperties": false
+  }
 }

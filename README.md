@@ -38,5 +38,5 @@ This specification is currently owned and maintained by SIROS Foundation. SIROS 
 | [vectors/](vectors/) | Test vectors — input/expected-output pairs for conformance testing |
 
 These artifacts are designed for AI coding agents and automated tooling. Validate
-your implementation against the schemas, then run the test vectors.
+your implementation against the schemas, then run the test vectors. The schemas are open to extension members (Core Section 9.5); `python3 tests/test_schemas.py` (needs `jsonschema` and `referencing`) checks that.
 
