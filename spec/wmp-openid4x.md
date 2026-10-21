@@ -225,11 +225,11 @@ At least one of `credential_offer` or `credential_offer_uri` MUST be provided.
 |-------|------|-------------|
 | `credentials` | object[] | Issued credentials |
 | `credentials[].format` | string | Credential format |
-| `credentials[].credential` | string | The credential (JWT, SD-JWT, mdoc CBOR) |
+| `credentials[].credential` | string | The credential (JWT, SD-JWT, mdoc CBOR). Absent when `credential_response_encrypted` is `true` |
 | `credentials[].vct` | string | Verifiable Credential Type identifier |
 | `credentials[].c_nonce` | string | Server nonce for subsequent proofs |
-| `credential_metadata` | object | OPTIONAL. The OpenID4VCI 1.1 response-level `credential_metadata` object (openid/OpenID4VCI#721) of the Credential Response or Deferred Credential Response, relayed verbatim. It applies to every entry of `credentials[]`. See 3.1.4.1 |
-| `credential_metadata_encrypted_response` | boolean | OPTIONAL. `true` only when `credential_metadata` came in a JWE-encrypted issuer response. When `credential_metadata` is present and this member is absent the value arrived as plain JSON, which is always the case for deferred issuance |
+| `credential_response_encrypted` | boolean | OPTIONAL. `true` when the issuer's response was encrypted to a key only the client holds. The server relayed the JWE unread (see 3.1.5.1), so `credentials[]` entries carry no `credential` value and the completion carries no `credential_metadata`; the client pairs `credentials[i]` with the i-th credential it decrypted, and a count mismatch is an error |
+| `credential_metadata` | object | OPTIONAL. Only for a plain (unencrypted) issuer response: the display-only members `display` and `claims` of its response-level `credential_metadata` (openid/OpenID4VCI#721), applying to every entry of `credentials[]`. See 3.1.4.1. Never present when `credential_response_encrypted` is `true` |
 | `refresh_token` | string | OPTIONAL. OAuth refresh token the issuer returned with this batch; the client stores it for renewal. A secret (see 3.1.4.2) |
 | `dpop_jwk` | string | OPTIONAL. Present only with `refresh_token`: the private JWK of the DPoP key the refresh token is bound to. A secret |
 | `dpop_key_id` | string | OPTIONAL. Present only with `refresh_token` when the DPoP key is client-held: the identifier of that key |
@@ -237,17 +237,14 @@ At least one of `credential_offer` or `credential_offer_uri` MUST be provided.
 
 ##### 3.1.4.1 `credential_metadata`
 
-- The value MUST be a JSON object. The sender relays members verbatim and in order (only insignificant whitespace may change) and preserves members it does not understand. A receiver MUST ignore members it does not understand.
-- The object is shared with display data, which is mostly what it carries (`display[]`, `claims[]`, logo and background images).
-- Extension members use collision-resistant names. The member `org.siros.secret_seed` is defined by the privatedata specification, Section 5A (it is not an OpenID4VCI member). Its value is an object that maps a namespace (1 to 64 UTF-8 bytes, not `namespaces`) to a seed of exactly 32 lowercase hexadecimal characters; it has 1 to 8 members.
-- A completion that carries `org.siros.secret_seed` is valid only if the issuer response was JWE-encrypted (`credential_metadata_encrypted_response` is `true`) and carried a `notification_id`. A wallet MUST refuse the issuance when the member is present and `credential_metadata_encrypted_response` is not `true`, and MUST NOT store anything from it. The remaining wallet obligations (commitment verification, strip-before-merge, storage only inside the encrypted container) are those of privatedata Section 5A.
-- `credential_metadata` MAY carry secrets. Implementations MUST NOT log it, MUST NOT include it in error messages or diagnostics, and MUST NOT retain it in any buffer, replay store or persisted state other than the wallet's secret store.
+- Present only for a plain issuer response, and then only with the members `display` and `claims`, relayed as received. The sender drops every other member (extension members, including `org.siros.secret_seed`) and never relays or logs them. A receiver MUST ignore members it does not understand.
+- A plain issuer response that carries `org.siros.secret_seed` is refused by the server (the issuance fails); a seed is delivered only in an encrypted response, which the client decrypts itself (3.1.5.1). Seed validation and storage are the wallet's obligations (privatedata Section 5A).
 
 ##### 3.1.4.2 Replay of a completion
 
-The secret members of a completion are `credential_metadata`, `credential_metadata_encrypted_response`, `refresh_token`, `dpop_jwk` and `dpop_key_id`. A server that keeps outbound notifications for replay (for example for SSE `Last-Event-ID` resume or `wmp.session.resume`) MUST NOT retain any of them in the retained copy. The live notification carries them and is delivered only to the connection that is streaming when the completion is emitted. A replayed `wmp.flow.complete` for the same flow omits every secret member that the live one carried, keeps `credentials[]` and all other members unchanged, and carries `"redacted_members"`: an array listing exactly the members that were omitted (for example `["credential_metadata", "credential_metadata_encrypted_response", "dpop_jwk", "dpop_key_id", "refresh_token"]`). It is absent when nothing was omitted and never present on the live notification.
+The secret members of a completion are `refresh_token`, `dpop_jwk` and `dpop_key_id`. A server that keeps outbound notifications for replay (for example for SSE `Last-Event-ID` resume or `wmp.session.resume`) MUST NOT retain any of them in the retained copy. The live notification carries them and is delivered only to the connection that is streaming when the completion is emitted. A replayed `wmp.flow.complete` for the same flow omits every secret member that the live one carried, keeps `credentials[]` and all other members unchanged, and carries `"redacted_members"`: an array listing exactly the members that were omitted (for example `["dpop_jwk", "dpop_key_id", "refresh_token"]`). It is absent when nothing was omitted and never present on the live notification.
 
-The marker means "withheld", not "the issuer sent none". A client that receives a replayed completion with `redacted_members` MUST treat every listed member as not recoverable: it MUST NOT conclude that the member did not exist, MUST NOT fabricate or substitute a value (in particular no refresh token, DPoP key or secret seed), and MUST treat an issuance that required a listed member (a delivered secret) as failed, to be re-issued. A credential whose `refresh_token` and `dpop_jwk` were withheld cannot be renewed without re-issuance. A client that needs these members therefore has to be connected to the event stream before it starts the flow and stay connected until the completion arrives. Clients dedupe replays by event ID.
+The marker means "withheld", not "the issuer sent none". A client that receives a replayed completion with `redacted_members` MUST treat every listed member as not recoverable: it MUST NOT conclude that the member did not exist, MUST NOT fabricate or substitute a value (in particular no refresh token or DPoP key), and MUST treat an issuance that required a listed member as failed, to be re-issued. A credential whose `refresh_token` and `dpop_jwk` were withheld cannot be renewed without re-issuance. A client that needs these members therefore has to be connected to the event stream before it starts the flow and stay connected until the completion arrives. Clients dedupe replays by event ID.
 
 #### 3.1.5 Sign Sub-flow
 
@@ -288,6 +285,30 @@ The `parent_flow_id` field links the sign flow to the parent OID4VCI flow. The s
   }
 }
 ```
+
+##### 3.1.5.1 Credential response encryption (engine-blind)
+
+The server never holds a credential-response key and never decrypts the issuer's response; it relays ciphertext. Two further `sign` actions carry this. Their params are additive members of the sign sub-flow params (extension registry: Section 7.6; Core Section 9.5) and peers that do not know them ignore them.
+
+`generate_proof` gains `credential_response_encryption`, present only when the issuer offers response encryption:
+
+```json
+"params": {
+  "action": "generate_proof", "parent_flow_id": "flow-vci-001",
+  "nonce": "n-0S6_WzA2Mj", "audience": "https://issuer.example.com", "count": 1,
+  "credential_response_encryption": {"alg": "ECDH-ES", "enc": "A256GCM", "required": true}
+}
+```
+
+`alg` and `enc` are the pair negotiated from the issuer metadata (`ECDH-ES`, `ECDH-ES+A128KW`, `ECDH-ES+A192KW`, `ECDH-ES+A256KW` with `A128GCM`, `A256GCM`, `A128CBC-HS256`, `A256CBC-HS512`); the issuer's JWE MUST use exactly that pair. `required` is `true` when the issuer requires encryption or advertises `org.siros.secret_seed`. The client generates a fresh ephemeral P-256 key per `generate_proof` request, keeps the private key, and returns the public JWK in the sign result as `credential_response_encryption_jwk` (`{"kty":"EC","crv":"P-256","x":"...","y":"...","use":"enc","alg":"<negotiated>"}`, `kid` optional). Absent or empty means declined; with `required: true` the server fails the issuance. An unusable JWK fails the issuance. With no `proof_types_supported` the request is for the key alone and returns no proofs.
+
+When the issuer answers with a JWE (for the Credential Request or a Deferred Credential Request) the server starts a sign sub-flow with action `decrypt_credential_response`:
+
+```json
+"params": {"action": "decrypt_credential_response", "parent_flow_id": "flow-vci-001", "jwe": "<compact JWE>", "deferred": false}
+```
+
+The client decrypts, keeps the credentials and the response-level `credential_metadata` locally, and completes the sub-flow with control members only: `transaction_id` (and optionally `interval`) when issuance is deferred, otherwise `credential_count` (1 to 256), never both; or an `error`. The server then polls the deferred endpoint (repeating the same `credential_response_encryption` JWK in the Deferred Credential Request) or completes the flow with `credential_response_encrypted: true`. The client supplies the `notification_id` itself in the credential notification.
 
 ### 3.2 `oid4vp` Flow — Verifiable Presentation
 
@@ -607,12 +628,15 @@ The members below are optional extension members in the sense of WMP Core Sectio
 | `verifier_jwk_thumbprint` | `sign` params (`sign_presentation`) | string | 7.2 | 0.1.0 |
 | `verifier_session_id` | `sign` params (`sign_presentation`) | string | 7.3 | 0.1.0 |
 | `verified_request` | `sign` params (`sign_presentation`); matching request params; `credential_selection` progress payload | object | 7.5 | 0.1.0 |
+| `credential_response_encryption` | `sign` params (`generate_proof`) | object | 7.6 | 0.1.0 |
+| `jwe`, `deferred` | `sign` params (`decrypt_credential_response`) | string, boolean | 7.6 | 0.1.0 |
+| `credential_response_encrypted` | `oid4vci` completion result | boolean | 3.1.4, 7.6 | 0.1.0 |
 | `context` | `trust_evaluated` progress payload (when `verifier_trust_evaluated` is `true`) | object | 7.4 | 0.1.0 |
 | `response_mode` | `sign` params (`sign_presentation`) | string | 3.2.5 | 0.1.0 |
 | `transaction_data` | `sign` params (`sign_presentation`) | object[] | 3.2.5 (gated by the `transaction_data` capability) | 0.1.0 |
-| `response_encryption` | `sign` params (`sign_presentation`, `response_mode` `direct_post.jwt` only) | object | 7.6 | 0.1.0 |
-| `state` | `sign` params (`sign_presentation`, together with `response_encryption`) | string | 7.6 | 0.1.0 |
-| `response_jwe` | `sign` result (`sign_presentation`, `response_mode` `direct_post.jwt` only) | string | 7.6 | 0.1.0 |
+| `response_encryption` | `sign` params (`sign_presentation`, `response_mode` `direct_post.jwt` only) | object | 7.7 | 0.1.0 |
+| `state` | `sign` params (`sign_presentation`, together with `response_encryption`) | string | 7.7 | 0.1.0 |
+| `response_jwe` | `sign` result (`sign_presentation`, `response_mode` `direct_post.jwt` only) | string | 7.7 | 0.1.0 |
 
 ### 7.1 `client_metadata`
 
@@ -700,7 +724,11 @@ The OpenID4VP request as the orchestrator validated it. It is built once per flo
 
 A `did:web:verifier.example.com` request with no verifier policy decision point gives `"signed": false, "signature_verification": "deferred"`; a `redirect_uri` request gives `"signed": false, "signature_verification": "none"`.
 
-### 7.6 `response_encryption`, `state` and `response_jwe`
+### 7.6 Credential response encryption (OID4VCI)
+
+Members of the engine-blind issuance flow of Section 3.1.5.1: `credential_response_encryption` (`{alg, enc, required}`) in `generate_proof` params; `jwe` and `deferred` in `decrypt_credential_response` params; `credential_response_encrypted` in the completion result. The client's answers (`credential_response_encryption_jwk`, `transaction_id`, `interval`, `credential_count`, `error`) are members of the sign result. All are additive and ignorable (Core Section 9.5 rule 1): a wallet that does not implement them does not supply a key, which fails a `required` issuance closed and otherwise leaves the issuer response in clear and visible to the orchestrator. `credential_response_encrypted` removes `credentials[].credential` and `credential_metadata` from the completion; a receiver that does not know it would see credentials without values, so a wallet that cannot decrypt MUST NOT decline a `required` encryption.
+
+### 7.7 `response_encryption`, `state` and `response_jwe`
 
 For a `sign_presentation` action of a request whose `response_mode` is `direct_post.jwt`, the orchestrator does not receive the `vp_token`: the wallet builds the response and encrypts it itself, and the orchestrator only relays it. The `sign` params carry the recipient, and the `sign` result carries the finished JWE.
 
