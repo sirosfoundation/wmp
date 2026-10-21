@@ -643,7 +643,7 @@ The OpenID4VP request as the orchestrator validated it. It is built once per flo
 |--------|---------|
 | `client_id` | The request's own `client_id`, after the `client_id` match and scheme-prefix checks. It is not an administrator-configured audience (such as the one carried by `verifier.client_id`). |
 | `client_id_scheme` | The `client_id` scheme: `x509_san_dns`, `x509_san_uri`, `x509_hash`, `did` or `decentralized_identifier`, `verifier_attestation`, `redirect_uri`. Omitted when the request has none. |
-| `response_mode` | `direct_post`, `direct_post.jwt`, `query` or `fragment`. Omitted when the request has none. |
+| `response_mode` | The request's `response_mode`, as the orchestrator received it, for example `direct_post`, `direct_post.jwt`, `query`, `fragment`, `dc_api` or `dc_api.jwt`. The list is not exhaustive: a wallet MUST treat any value it does not recognise as not encrypted. Omitted when the request has none. |
 | `response_uri` | The validated `response_uri`; the `redirect_uri` when the request has no `response_uri` (as for the redirect response modes). |
 | `signed` | Boolean. `true` only when `signature_verification` is `"verified"`. A receiver that does not know the member reads the request as not signed. |
 | `signature_verification` | `"verified"`, `"deferred"` or `"none"`. |
@@ -661,6 +661,7 @@ The OpenID4VP request as the orchestrator validated it. It is built once per flo
 - `deferred` MUST NOT be treated as verified.
 - `client_metadata` inside `verified_request` is unauthenticated unless `signed` is `true`; when `signed` is `false` the wallet MUST treat it as data supplied by an unauthenticated party. The top-level `client_metadata` member (Section 7.1) is unchanged and carries the same value.
 - A wallet MUST fail closed for a `zkp_req` presentation when `verified_request`, `signed` or `response_mode` is absent (for example because the orchestrator predates this member): it MUST NOT infer a signed request or an encrypted response mode from their absence. The orchestrator does not itself refuse a `zkp_req` presentation over a non-encrypted `response_mode`; that refusal is the wallet's, taken from `response_mode` here.
+- This member is not capability-gated (Core Section 9.5 rule 1 applies): a wallet that predates this section ignores it, so the checks above hold only for wallets that implement it. This revision defines no capability that lets the orchestrator refuse a `zkp_req` flow for such a wallet, and the orchestrator does not enforce the `response_mode` policy itself.
 
 ```json
 "verified_request": {
