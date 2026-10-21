@@ -119,8 +119,8 @@
     "notes": "The wallet should respond with a flow.complete containing the generated proof JWT."
   },
   {
-    "id": "flow-vci-complete-credential-metadata-seed",
-    "description": "OpenID4VCI completion (live) carrying response-level credential_metadata with org.siros.secret_seed and the encrypted flag.",
+    "id": "flow-vci-complete-encrypted-blind",
+    "description": "OpenID4VCI completion (live) for an issuer response encrypted to a client-held key: credential_response_encrypted true, no credential values, no credential_metadata.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -134,22 +134,10 @@
         "result": {
           "credentials": [
             {
-              "format": "mso_mdoc",
-              "credential": "o2d2ZXJzaW9uYzEuMA"
+              "format": "mso_mdoc"
             }
           ],
-          "credential_metadata": {
-            "org.siros.secret_seed": {
-              "nym": "00112233445566778899aabbccddeeff"
-            },
-            "display": [
-              {
-                "name": "Employee Card",
-                "locale": "en"
-              }
-            ]
-          },
-          "credential_metadata_encrypted_response": true,
+          "credential_response_encrypted": true,
           "refresh_token": "rt-test-value",
           "dpop_jwk": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\"test\",\"y\":\"test\",\"d\":\"test\"}",
           "dpop_key_id": "dpop-key-1"
@@ -157,11 +145,11 @@
       }
     },
     "expected_response": null,
-    "notes": "Live notification: the full completion. The receiver preserves credential_metadata verbatim and may accept the seed because credential_metadata_encrypted_response is true. None of the secret members (credential_metadata, its flag, refresh_token, dpop_jwk, dpop_key_id) is retained in any replay buffer. Values are test values."
+    "notes": "The server relayed the issuer's JWE unread, so credentials[] entries carry no credential value and the completion carries no credential_metadata (a seed, if any, reached the client inside the JWE it decrypted itself). The client pairs credentials[0] with the first credential it decrypted; a count mismatch is an error. refresh_token, dpop_jwk and dpop_key_id are secrets: none is retained in any replay buffer. Values are test values."
   },
   {
     "id": "flow-vci-complete-credential-metadata-deferred-display",
-    "description": "OpenID4VCI deferred completion: display-only credential_metadata, plain response, no encrypted flag.",
+    "description": "OpenID4VCI deferred completion: plain issuer response, display-only credential_metadata, no credential_response_encrypted.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -191,11 +179,11 @@
       }
     },
     "expected_response": null,
-    "notes": "Flag absent means the metadata arrived as plain JSON. Display-only metadata needs no encryption."
+    "notes": "Plain (unencrypted) response: credential_metadata carries only the display-only members (display, claims). credential_response_encrypted is absent, so credentials[] carry their values."
   },
   {
     "id": "flow-vci-complete-replayed-redacted",
-    "description": "Replayed OpenID4VCI completion: credential_metadata, its encrypted flag, refresh_token, dpop_jwk and dpop_key_id withheld, listed in redacted_members.",
+    "description": "Replayed OpenID4VCI completion: refresh_token, dpop_jwk and dpop_key_id withheld, listed in redacted_members.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -209,13 +197,11 @@
         "result": {
           "credentials": [
             {
-              "format": "mso_mdoc",
-              "credential": "o2d2ZXJzaW9uYzEuMA"
+              "format": "mso_mdoc"
             }
           ],
+          "credential_response_encrypted": true,
           "redacted_members": [
-            "credential_metadata",
-            "credential_metadata_encrypted_response",
             "dpop_jwk",
             "dpop_key_id",
             "refresh_token"
@@ -224,11 +210,11 @@
       }
     },
     "expected_response": null,
-    "notes": "Sent only from a replay buffer (Last-Event-ID or resume). The client must treat every listed member as not recoverable: no inferring that the issuer sent none, no inventing a refresh token, DPoP key or seed; an issuance that required the seed is re-issued, and the credential cannot be renewed without re-issuance."
+    "notes": "Sent only from a replay buffer (Last-Event-ID or resume). The client must treat every listed member as not recoverable: no inferring that the issuer sent none, no inventing a refresh token or DPoP key; an issuance that required one is re-issued, and the credential cannot be renewed without re-issuance."
   },
   {
-    "id": "flow-vci-complete-seed-without-encrypted-flag-refused",
-    "description": "Negative: org.siros.secret_seed in a completion without credential_metadata_encrypted_response true.",
+    "id": "flow-vci-complete-plain-seed-refused",
+    "description": "Negative: org.siros.secret_seed in the credential_metadata of a plain (unencrypted) completion.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -255,7 +241,103 @@
       }
     },
     "expected_response": null,
-    "notes": "A wallet MUST refuse the issuance and store nothing from it. A conforming server never emits this shape; the vector is for the client."
+    "must_refuse": true,
+    "notes": "A seed is never relayed in a completion. A server fails the issuance when a plain issuer response carries one and never emits this shape; a client that receives it MUST refuse the issuance and store nothing from it."
+  },
+  {
+    "id": "flow-vci-complete-encrypted-seed-leaked-refused",
+    "description": "Negative: an encrypted-response completion that relays org.siros.secret_seed in credential_metadata.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "mso_mdoc"
+            }
+          ],
+          "credential_response_encrypted": true,
+          "credential_metadata": {
+            "org.siros.secret_seed": {
+              "nym": "00112233445566778899aabbccddeeff"
+            }
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "With credential_response_encrypted true the server never relays credential_metadata, least of all a seed: the seed stays inside the JWE the client decrypts. A client MUST refuse this completion and store nothing from it."
+  },
+  {
+    "id": "flow-vci-complete-encrypted-metadata-leaked-refused",
+    "description": "Negative: an encrypted-response completion that carries credential_metadata at all (display-only).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "mso_mdoc"
+            }
+          ],
+          "credential_response_encrypted": true,
+          "credential_metadata": {
+            "display": [
+              {
+                "name": "Employee Card",
+                "locale": "en"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "credential_metadata is never present when credential_response_encrypted is true; the client uses the response-level credential_metadata it decrypted."
+  },
+  {
+    "id": "flow-vci-complete-encrypted-credential-value-refused",
+    "description": "Negative: an encrypted-response completion that carries a credential value.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "mso_mdoc",
+              "credential": "o2d2ZXJzaW9uYzEuMA"
+            }
+          ],
+          "credential_response_encrypted": true
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "The server cannot read an encrypted response, so a credential value in this completion cannot come from the issuer; the client MUST refuse it."
   },
   {
     "id": "flow-vci-complete-replayed-refresh-token-only",
@@ -286,5 +368,180 @@
     },
     "expected_response": null,
     "notes": "Only the members that were present are listed. The client must not invent a refresh_token; the credential cannot be renewed without re-issuance."
+  },
+  {
+    "id": "flow-sign-generate-proof-response-encryption",
+    "description": "Sign flow requesting a key proof together with a client-held credential-response encryption key.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "flow-vci-001-sign-req",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:issuer.example.com"
+        },
+        "flow_type": "sign",
+        "flow_id": "flow-vci-001-sign",
+        "params": {
+          "action": "generate_proof",
+          "parent_flow_id": "flow-vci-001",
+          "nonce": "n-0S6_WzA2Mj",
+          "audience": "https://issuer.example.com",
+          "count": 1,
+          "credential_response_encryption": {
+            "alg": "ECDH-ES",
+            "enc": "A256GCM",
+            "required": true
+          }
+        }
+      }
+    },
+    "notes": "credential_response_encryption is additive and ignorable. The client generates a fresh ephemeral P-256 key, keeps the private key and returns the public JWK as credential_response_encryption_jwk in the sign result; absent or empty means declined, which fails the issuance when required is true."
+  },
+  {
+    "id": "flow-sign-result-credential-response-key",
+    "description": "Sign result of generate_proof carrying the client's public response-encryption JWK.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-sign",
+        "result": {
+          "proof_jwt": "eyJ0ZXN0",
+          "credential_response_encryption_jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+            "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
+            "use": "enc",
+            "alg": "ECDH-ES"
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "Public coordinates only; the private key never leaves the client."
+  },
+  {
+    "id": "flow-sign-decrypt-credential-response",
+    "description": "Sign flow asking the client to decrypt a relayed issuer JWE.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "flow-vci-001-dec-req",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:issuer.example.com"
+        },
+        "flow_type": "sign",
+        "flow_id": "flow-vci-001-dec",
+        "params": {
+          "action": "decrypt_credential_response",
+          "parent_flow_id": "flow-vci-001",
+          "jwe": "eyJhbGciOiJFQ0RILUVTIiwiZW5jIjoiQTI1NkdDTSJ9..aXY.Y2lwaGVydGV4dA.dGFn",
+          "deferred": false
+        }
+      }
+    },
+    "notes": "The server cannot decrypt the value. The jwe here is a structurally valid test value, not decryptable."
+  },
+  {
+    "id": "flow-sign-result-decrypted-count",
+    "description": "Sign result of decrypt_credential_response for an immediate response: control members only.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-dec",
+        "result": {
+          "credential_count": 1
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "The client keeps the credentials and the response-level credential_metadata locally and reports only the count (1 to 256)."
+  },
+  {
+    "id": "flow-sign-result-decrypted-deferred",
+    "description": "Sign result of decrypt_credential_response for a deferred response: transaction_id and interval.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-dec",
+        "result": {
+          "transaction_id": "tx-0001",
+          "interval": 5
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "The server then polls the deferred endpoint; each answer goes through decrypt_credential_response again with deferred true."
+  },
+  {
+    "id": "flow-sign-result-decrypted-count-and-transaction-refused",
+    "description": "Negative: decrypt_credential_response result with both transaction_id and credential_count.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-dec",
+        "result": {
+          "transaction_id": "tx-0001",
+          "credential_count": 1
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "Exactly one of transaction_id and credential_count; the server fails the issuance."
+  },
+  {
+    "id": "flow-sign-result-decrypted-count-out-of-range-refused",
+    "description": "Negative: decrypt_credential_response result with credential_count 0.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-dec",
+        "result": {
+          "credential_count": 0
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "credential_count is 1 to 256; the server fails the issuance."
   }
 ]
