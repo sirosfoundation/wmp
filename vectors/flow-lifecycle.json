@@ -642,6 +642,51 @@
     "notes": "Exactly one of transaction_id and credential_count; the server fails the issuance."
   },
   {
+    "id": "flow-sign-result-interval-alone-refused",
+    "description": "Negative: decrypt_credential_response result with interval and no transaction_id.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-dec",
+        "result": {
+          "interval": 5
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "An interval belongs only to a deferred result and requires transaction_id."
+  },
+  {
+    "id": "flow-sign-result-count-with-interval-refused",
+    "description": "Negative: decrypt_credential_response result with credential_count and interval.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-dec",
+        "result": {
+          "credential_count": 1,
+          "interval": 5
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "An interval belongs only to a deferred result and requires transaction_id."
+  },
+  {
     "id": "flow-sign-result-decrypted-count-out-of-range-refused",
     "description": "Negative: decrypt_credential_response result with credential_count 0.",
     "conformance_level": "flows",
