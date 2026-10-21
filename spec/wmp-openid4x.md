@@ -439,7 +439,23 @@ A wallet that will not sign (the user declined, the wallet does not trust the ve
 }
 ```
 
-The orchestrator MUST end the `oid4vp` flow at once and MUST NOT wait for the sub-flow's timeout. It reports the refusal to the verifier as `access_denied` (OID4VP) with the request's `state` and **no** `error_description`, using the response mode of the request, and ends the `oid4vp` flow towards the wallet with the verifier's redirect URI when the response mode produced one. `message` and any other `data` members stay between the wallet and the orchestrator: the orchestrator MUST NOT forward them to the verifier, since they may say why the wallet refused.
+The orchestrator MUST end the `oid4vp` flow at once and MUST NOT wait for the sub-flow's timeout. It reports the refusal to the verifier as `access_denied` (OID4VP) with the request's `state` and **no** `error_description`, using the response mode of the request. `message` and any other `data` members of the sub-flow's `wmp.flow.error` stay between the wallet and the orchestrator: the orchestrator MUST NOT forward them to the verifier, since they may say why the wallet refused.
+
+Towards the wallet the `oid4vp` flow ends with a terminal `wmp.flow.error` on the parent flow, code `-31006`. This profile defines no `wmp.flow.complete` result for a refused presentation. When the response mode of the request produced a verifier redirect (for example `query` or `fragment`), its URL is carried in `data.redirect_uri`; `data` is omitted otherwise.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "wmp.flow.error",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_id": "flow-vp-001",
+    "code": -31006,
+    "message": "User declined the request",
+    "data": {"redirect_uri": "https://verifier.example.com/cb?error=access_denied&state=st-1"}
+  }
+}
+```
 
 ## 4. Complete OID4VCI Flow Example
 
