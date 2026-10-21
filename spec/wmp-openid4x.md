@@ -543,7 +543,7 @@ Implementations MUST validate credential offers before processing:
 
 ## 7. Extension Members
 
-The members below are optional extension members in the sense of WMP Core Section 9.5: receivers MUST ignore them if they do not understand them, and senders MUST NOT require them to be understood. Adding one does not change the WMP protocol version or the version of any capability. This table is the registry of extension members of this profile; a new member is added here, with its location and semantics, in a MINOR revision of this document.
+The members below are optional extension members in the sense of WMP Core Section 9.5: receivers MUST ignore them if they do not understand them, and senders MUST NOT require them to be understood. Adding a purely additive, ignorable member does not change the WMP protocol version or the version of any capability. A member whose processing is required for correctness or safety is not covered by the ignore rule: `transaction_data` and `response_mode` (for a request that carries transaction data) remain gated by the `transaction_data` capability (Section 2.3) and the fail-closed requirements of Section 3.2.5, as Core Section 9.5 rule 2 provides. This table is the registry of extension members of this profile; a new member is added here, with its location and semantics, in a MINOR revision of this document.
 
 | Member | Carried in | Type | Section | Since |
 |--------|-----------|------|---------|-------|
@@ -557,7 +557,7 @@ The members below are optional extension members in the sense of WMP Core Sectio
 
 The verifier's OpenID4VP `client_metadata` JSON object, taken verbatim from the validated request object (inline, or fetched from `client_metadata_uri`). It carries what the orchestrator itself does not model, notably `vp_formats_supported`. For a `zkp_req` presentation (typically with `response_mode` `direct_post.jwt`) its `vp_formats_supported.zkp_req` holds the `system_id_values` and `proof_system_values` from which the wallet chooses its circuit and proof system.
 
-- The sender MUST omit the member when the request had no `client_metadata`.
+- The sender MUST omit the member when the request had no client metadata, that is, neither an inline `client_metadata` nor one resolved from `client_metadata_uri`. A request with only `client_metadata_uri` carries the fetched object.
 - The value is carried verbatim (Core Section 9.5 rule 4); the wallet MUST NOT assume any member beyond those it understands.
 - It is carried on the `sign` params of a `sign_presentation` action, and, where an implementation passes the request context to the wallet in a credential matching request or in the payload of a `credential_selection` progress message, in those too, with the same name and meaning. This profile does not otherwise define those messages.
 
@@ -575,7 +575,7 @@ The verifier's OpenID4VP `client_metadata` JSON object, taken verbatim from the 
 
 ### 7.2 `verifier_jwk_thumbprint`
 
-The JWK Thumbprint (RFC 7638, SHA-256) of the verifier's response-encryption key, as an **unpadded base64url** string. For `response_mode` `direct_post.jwt` the member is never empty: the wallet uses it to build the OpenID4VP session transcript (the handover for mdoc). If the orchestrator cannot read that key it MUST fail the flow rather than send an empty value; go-wallet-backend fails the flow with a `SIGN_ERROR` flow error. For other response modes the member is omitted.
+The JWK Thumbprint (RFC 7638, SHA-256) of the verifier's response-encryption key, as an **unpadded base64url** string. For `response_mode` `direct_post.jwt` the member is never empty: the wallet uses it to build the OpenID4VP session transcript (the handover for mdoc). If the orchestrator cannot read that key it MUST fail the flow rather than send an empty value; go-wallet-backend fails the flow with a `SIGN_ERROR` flow error. This section defines the member for `direct_post.jwt` only; go-wallet-backend omits it for other response modes, and whether it is sent for another encrypted mode (for example `dc_api.jwt`, whose handover also needs the thumbprint) is not defined here.
 
 ### 7.3 `verifier_session_id`
 
