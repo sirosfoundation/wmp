@@ -152,5 +152,83 @@ class StillStrict(unittest.TestCase):
                        ["params", "capabilities_offered", "custom_cap"], "notobject"))
 
 
+class FlowCompleteVectors(unittest.TestCase):
+    """Every single-message flow.complete vector validates against the schema
+    unless it is marked must_refuse, in which case it must NOT validate."""
+
+    def vectors(self):
+        vs = json.loads((ROOT / "vectors" / "flow-lifecycle.json").read_text())
+        return [v for v in vs
+                if isinstance(v["input"], dict)
+                and v["input"].get("method") == "wmp.flow.complete"]
+
+    def test_vectors_match_schema(self):
+        vs = self.vectors()
+        self.assertGreaterEqual(len(vs), 10)
+        refused = 0
+        for v in vs:
+            errs = errors("methods/flow-complete.json", v["input"])
+            if v.get("must_refuse"):
+                refused += 1
+                self.assertNotEqual(errs, [], v["id"] + " must be refused")
+            else:
+                self.assertEqual(errs, [], v["id"])
+        self.assertGreaterEqual(refused, 4)
+
+
+class FlowCompleteBlindIssuance(unittest.TestCase):
+    """Engine-blind issuance (Section 3.1.5.1): the seed is never relayed."""
+
+    BASE = {"jsonrpc": "2.0", "method": "wmp.flow.complete",
+            "params": {"wmp": WMP, "flow_id": "f1",
+                       "result": {"credentials": [{"format": "mso_mdoc"}],
+                                  "credential_response_encrypted": True}}}
+    SEED = {"org.siros.secret_seed": {"nym": "00" * 16}}
+
+    def test_encrypted_ok(self):
+        self.assertEqual(errors("methods/flow-complete.json", self.BASE), [])
+
+    def test_encrypted_with_credential_metadata_refused(self):
+        inst = with_(self.BASE, ["params", "result", "credential_metadata"],
+                     {"display": []})
+        self.assertNotEqual(errors("methods/flow-complete.json", inst), [])
+
+    def test_encrypted_with_credential_value_refused(self):
+        inst = with_(self.BASE, ["params", "result", "credentials"],
+                     [{"format": "mso_mdoc", "credential": "x"}])
+        self.assertNotEqual(errors("methods/flow-complete.json", inst), [])
+
+    def test_seed_in_any_completion_refused(self):
+        plain = without(self.BASE, ["params", "result", "credential_response_encrypted"])
+        inst = with_(plain, ["params", "result", "credential_metadata"], self.SEED)
+        self.assertNotEqual(errors("methods/flow-complete.json", inst), [])
+
+    def test_plain_display_metadata_ok(self):
+        plain = without(self.BASE, ["params", "result", "credential_response_encrypted"])
+        inst = with_(plain, ["params", "result", "credential_metadata"],
+                     {"display": [{"name": "x"}]})
+        self.assertEqual(errors("methods/flow-complete.json", inst), [])
+
+    def test_redacted_members_only_replay_secrets(self):
+        for m in ("credential_metadata", "credential_metadata_encrypted_response"):
+            inst = with_(self.BASE, ["params", "result", "redacted_members"], [m])
+            self.assertNotEqual(errors("methods/flow-complete.json", inst), [])
+        inst = with_(self.BASE, ["params", "result", "redacted_members"],
+                     ["dpop_jwk", "dpop_key_id", "refresh_token"])
+        self.assertEqual(errors("methods/flow-complete.json", inst), [])
+
+    def test_decrypt_result_control_members(self):
+        def res(r):
+            return {"jsonrpc": "2.0", "method": "wmp.flow.complete",
+                    "params": {"wmp": WMP, "flow_id": "f1", "result": r}}
+        for ok in ({"credential_count": 1}, {"credential_count": 256},
+                   {"transaction_id": "t", "interval": 5}):
+            self.assertEqual(errors("methods/flow-complete.json", res(ok)), [], ok)
+        for bad in ({"credential_count": 0}, {"credential_count": 257},
+                    {"transaction_id": "t", "credential_count": 1},
+                    {"transaction_id": ""}):
+            self.assertNotEqual(errors("methods/flow-complete.json", res(bad)), [], bad)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
