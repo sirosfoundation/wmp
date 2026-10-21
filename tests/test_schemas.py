@@ -230,7 +230,9 @@ class FlowCompleteBlindIssuance(unittest.TestCase):
                     {"transaction_id": "t", "credentials": []},
                     {"transaction_id": "t", "credential_metadata": {}},
                     {"transaction_id": "t", "credential_count": 1},
-                    {"transaction_id": ""}):
+                    {"transaction_id": ""},
+                    {"interval": 5},
+                    {"credential_count": 1, "interval": 5}):
             self.assertNotEqual(errors("methods/flow-complete.json", res(bad)), [], bad)
 
 
