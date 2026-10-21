@@ -421,6 +421,26 @@ Each `transaction_data` entry has these members:
 
 The sub-flow completes with the VP token as in Section 3.1.5. The wallet is responsible for the remaining requirements of EC TS12 (display of the transaction, the `amr` claim, `jti`, logging); they are not carried in this protocol.
 
+#### 3.2.6 Refusing the Sign Sub-flow
+
+A wallet that will not sign (the user declined, the wallet does not trust the verifier, or a value the signature must bind is missing) ends the `sign` sub-flow with `wmp.flow.error` and `data.reason` `rejected`, the well-known reason of WMP Core Section 6.2 for a responder that declines. Any other `wmp.flow.error` is a failure, not a refusal.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "wmp.flow.error",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_id": "flow-vp-001-sign",
+    "code": -31006,
+    "message": "declined",
+    "data": {"reason": "rejected"}
+  }
+}
+```
+
+The orchestrator MUST end the `oid4vp` flow at once and MUST NOT wait for the sub-flow's timeout. It reports the refusal to the verifier as `access_denied` (OID4VP) with the request's `state` and **no** `error_description`, using the response mode of the request, and ends the `oid4vp` flow towards the wallet with the verifier's redirect URI when the response mode produced one. `message` and any other `data` members stay between the wallet and the orchestrator: the orchestrator MUST NOT forward them to the verifier, since they may say why the wallet refused.
+
 ## 4. Complete OID4VCI Flow Example
 
 ```
