@@ -371,7 +371,7 @@
   },
   {
     "id": "flow-sign-generate-proof-response-encryption",
-    "description": "Sign flow requesting a key proof together with a client-held credential-response encryption key.",
+    "description": "Sign flow requesting a key proof together with a client-held credential-response encryption key (proof_type and proof_types_supported present: proofs are requested).",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -395,6 +395,14 @@
             "alg": "ECDH-ES",
             "enc": "A256GCM",
             "required": true
+          },
+          "proof_type": "jwt",
+          "proof_types_supported": {
+            "jwt": {
+              "proof_signing_alg_values_supported": [
+                "ES256"
+              ]
+            }
           }
         }
       }
@@ -429,6 +437,117 @@
     },
     "expected_response": null,
     "notes": "Public coordinates only; the private key never leaves the client."
+  },
+  {
+    "id": "flow-sign-generate-key-only",
+    "description": "Sign flow requesting only the credential-response encryption key (no proof_type, no proof_types_supported).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vci-key-001",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:issuer.example.com"
+        },
+        "flow_type": "sign",
+        "flow_id": "flow-vci-001-key",
+        "params": {
+          "action": "generate_proof",
+          "parent_flow_id": "flow-vci-001",
+          "audience": "https://issuer.example.com",
+          "credential_response_encryption": {
+            "alg": "ECDH-ES",
+            "enc": "A256GCM",
+            "required": true
+          }
+        }
+      }
+    },
+    "notes": "With credential_response_encryption and neither proof_type nor proof_types_supported the request is for the key alone: the client returns credential_response_encryption_jwk and no proofs."
+  },
+  {
+    "id": "flow-sign-result-key-only",
+    "description": "Sign result of a key-only generate_proof: the public JWK and no proof.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-key",
+        "result": {
+          "credential_response_encryption_jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",
+            "y": "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",
+            "use": "enc",
+            "alg": "ECDH-ES"
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "No proof_jwt: none was requested."
+  },
+  {
+    "id": "flow-sign-result-decrypted-count-with-credentials-refused",
+    "description": "Negative: decrypt_credential_response result that also returns the decrypted credentials.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-dec",
+        "result": {
+          "credential_count": 1,
+          "credentials": [
+            {
+              "format": "mso_mdoc",
+              "credential": "o2d2ZXJzaW9uYzEuMA"
+            }
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "A decryption result carries control members only; sending credentials back would hand the orchestrator the plaintext it is meant not to see."
+  },
+  {
+    "id": "flow-sign-result-decrypted-transaction-with-metadata-refused",
+    "description": "Negative: decrypt_credential_response result that also returns credential_metadata.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001-dec",
+        "result": {
+          "transaction_id": "tx-0001",
+          "credential_metadata": {
+            "display": []
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "A decryption result carries control members only."
   },
   {
     "id": "flow-sign-decrypt-credential-response",
@@ -578,11 +697,20 @@
             "alg": "ECDH-ES",
             "enc": "A128GCM"
           },
-          "state": "st-1"
+          "state": "st-1",
+          "verifier_jwk_thumbprint": "oKIywvGUpTVTyxMQ3bwIIeQUudfr_CkLMjCE19ECD-U",
+          "verified_request": {
+            "client_id": "x509_san_dns:shop.example.com",
+            "client_id_scheme": "x509_san_dns",
+            "response_mode": "direct_post.jwt",
+            "response_uri": "https://shop.example.com/cb",
+            "signed": true,
+            "signature_verification": "verified"
+          }
         }
       }
     },
-    "notes": "The wallet builds the vp_token and the JARM claims (iss, aud from verified_request.client_id, iat, exp, vp_token, state) and encrypts them to jwk itself; the orchestrator only relays the JWE. Members are additive: a wallet that predates them answers with a vp_token, which the orchestrator refuses."
+    "notes": "The wallet builds the vp_token and the JARM claims (iss, aud from verified_request.client_id, iat, exp, vp_token, state) and encrypts them to jwk itself; the orchestrator only relays the JWE. Members are additive: a wallet that predates them answers with a vp_token, which the orchestrator refuses. verified_request.client_id is the JARM aud; verifier_jwk_thumbprint is the RFC 7638 SHA-256 thumbprint of response_encryption.jwk (Section 7.2)."
   },
   {
     "id": "flow-sign-result-response-jwe",
