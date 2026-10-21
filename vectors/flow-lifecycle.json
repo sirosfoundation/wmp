@@ -697,11 +697,20 @@
             "alg": "ECDH-ES",
             "enc": "A128GCM"
           },
-          "state": "st-1"
+          "state": "st-1",
+          "verifier_jwk_thumbprint": "oKIywvGUpTVTyxMQ3bwIIeQUudfr_CkLMjCE19ECD-U",
+          "verified_request": {
+            "client_id": "x509_san_dns:shop.example.com",
+            "client_id_scheme": "x509_san_dns",
+            "response_mode": "direct_post.jwt",
+            "response_uri": "https://shop.example.com/cb",
+            "signed": true,
+            "signature_verification": "verified"
+          }
         }
       }
     },
-    "notes": "The wallet builds the vp_token and the JARM claims (iss, aud from verified_request.client_id, iat, exp, vp_token, state) and encrypts them to jwk itself; the orchestrator only relays the JWE. Members are additive: a wallet that predates them answers with a vp_token, which the orchestrator refuses."
+    "notes": "The wallet builds the vp_token and the JARM claims (iss, aud from verified_request.client_id, iat, exp, vp_token, state) and encrypts them to jwk itself; the orchestrator only relays the JWE. Members are additive: a wallet that predates them answers with a vp_token, which the orchestrator refuses. verified_request.client_id is the JARM aud; verifier_jwk_thumbprint is the RFC 7638 SHA-256 thumbprint of response_encryption.jwk (Section 7.2)."
   },
   {
     "id": "flow-sign-result-response-jwe",
