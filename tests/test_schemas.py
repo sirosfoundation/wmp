@@ -81,7 +81,7 @@ class ExtensionMembers(unittest.TestCase):
 
     def test_params_level(self):
         for m in ("client_metadata", "context", "verifier_jwk_thumbprint",
-                  "response_mode", "org.acme.risk_score"):
+                  "response_mode", "verified_request", "org.acme.risk_score"):
             self.check("methods/flow-start.json",
                        with_(FLOW_START, ["params", m], {"a": 1}))
 

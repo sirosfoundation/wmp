@@ -586,6 +586,7 @@ The members below are optional extension members in the sense of WMP Core Sectio
 | `client_metadata` | `sign` params (`sign_presentation`); matching request params; `credential_selection` progress payload | object | 7.1 | 0.1.0 |
 | `verifier_jwk_thumbprint` | `sign` params (`sign_presentation`) | string | 7.2 | 0.1.0 |
 | `verifier_session_id` | `sign` params (`sign_presentation`) | string | 7.3 | 0.1.0 |
+| `verified_request` | `sign` params (`sign_presentation`); matching request params; `credential_selection` progress payload | object | 7.5 | 0.1.0 |
 | `context` | `trust_evaluated` progress payload (when `verifier_trust_evaluated` is `true`) | object | 7.4 | 0.1.0 |
 | `response_mode` | `sign` params (`sign_presentation`) | string | 3.2.5 | 0.1.0 |
 | `transaction_data` | `sign` params (`sign_presentation`) | object[] | 3.2.5 (gated by the `transaction_data` capability) | 0.1.0 |
@@ -633,6 +634,48 @@ When the engine evaluates verifier trust, the `verifier_trust_evaluated` flow pr
   ]
 }
 ```
+
+### 7.5 `verified_request`
+
+The OpenID4VP request as the orchestrator validated it. It is built once per flow and carried identically at every point where an implementation passes the request context to the wallet: the `sign` params of a `sign_presentation` action, a credential matching request, and the payload of a `credential_selection` progress message. A wallet therefore applies one policy over the whole flow and over every transport, including a redirect flow. The member carries no trust verdict. The wallet MUST still require the verifier trust result (the `verifier.trusted` outcome of Section 7.4's evaluation) and, for the x509 `client_id` schemes, MUST NOT treat `signed` as a substitute for it: the SAN or hash binding of the certificate to `client_id` is the trust evaluation's check, not the signature check. This profile does not otherwise define those messages. Its members are additive, and receivers MUST ignore members they do not understand.
+
+| Member | Meaning |
+|--------|---------|
+| `client_id` | The request's own `client_id`, after the `client_id` match and scheme-prefix checks. It is not an administrator-configured audience (such as the one carried by `verifier.client_id`). |
+| `client_id_scheme` | The `client_id` scheme: `x509_san_dns`, `x509_san_uri`, `x509_hash`, `did` or `decentralized_identifier`, `verifier_attestation`, `redirect_uri`. Omitted when the request has none. |
+| `response_mode` | The request's `response_mode`, as the orchestrator received it, for example `direct_post`, `direct_post.jwt`, `query`, `fragment`, `dc_api` or `dc_api.jwt`. The list is not exhaustive: a wallet MUST treat any value it does not recognise as not encrypted. Omitted when the request has none. |
+| `response_uri` | The validated `response_uri`; the `redirect_uri` when the request has no `response_uri` (as for the redirect response modes). |
+| `signed` | Boolean. `true` only when `signature_verification` is `"verified"`. A receiver that does not know the member reads the request as not signed. |
+| `signature_verification` | `"verified"`, `"deferred"` or `"none"`. |
+| `client_metadata` | The verifier's `client_metadata`, verbatim, as in Section 7.1. Omitted when the request had none. |
+
+`signature_verification` states only what the orchestrator itself established: that the request object's signature verified against a key the `client_id` scheme binds to `client_id`.
+
+| Scheme | `verified` when | Otherwise |
+|--------|-----------------|-----------|
+| `x509_san_dns`, `x509_san_uri`, `x509_hash` | the JWT signature verified against the header `x5c` | the flow fails |
+| `did`, `decentralized_identifier` | the signature verified against a key resolved for the DID (a verifier policy decision point is configured) | `deferred` when none is configured: resolution and verification are left to the wallet |
+| `verifier_attestation` | the signature verified against the attestation's `cnf` key and a verifier policy decision point is configured to validate the attestation | `deferred` when none is configured: nothing has checked the attestation that binds `cnf` to `client_id` |
+| `redirect_uri` | never | `none`: a valid embedded key proves possession only |
+
+- `deferred` MUST NOT be treated as verified.
+- `client_metadata` inside `verified_request` is unauthenticated unless `signed` is `true`; when `signed` is `false` the wallet MUST treat it as data supplied by an unauthenticated party. The top-level `client_metadata` member (Section 7.1) is unchanged and carries the same value.
+- A wallet MUST fail closed for a `zkp_req` presentation when `verified_request`, `signed` or `response_mode` is absent (for example because the orchestrator predates this member): it MUST NOT infer a signed request or an encrypted response mode from their absence. The orchestrator does not itself refuse a `zkp_req` presentation over a non-encrypted `response_mode`; that refusal is the wallet's, taken from `response_mode` here.
+- This member is not capability-gated (Core Section 9.5 rule 1 applies): a wallet that predates this section ignores it, so the checks above hold only for wallets that implement it. This revision defines no capability that lets the orchestrator refuse a `zkp_req` flow for such a wallet, and the orchestrator does not enforce the `response_mode` policy itself.
+
+```json
+"verified_request": {
+  "client_id": "x509_san_dns:verifier.example.com",
+  "client_id_scheme": "x509_san_dns",
+  "response_mode": "direct_post.jwt",
+  "response_uri": "https://verifier.example.com/response",
+  "signed": true,
+  "signature_verification": "verified",
+  "client_metadata": {"vp_formats_supported": {}}
+}
+```
+
+A `did:web:verifier.example.com` request with no verifier policy decision point gives `"signed": false, "signature_verification": "deferred"`; a `redirect_uri` request gives `"signed": false, "signature_verification": "none"`.
 
 ## References
 
