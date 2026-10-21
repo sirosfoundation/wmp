@@ -586,6 +586,7 @@ The members below are optional extension members in the sense of WMP Core Sectio
 | `client_metadata` | `sign` params (`sign_presentation`); matching request params; `credential_selection` progress payload | object | 7.1 | 0.1.0 |
 | `verifier_jwk_thumbprint` | `sign` params (`sign_presentation`) | string | 7.2 | 0.1.0 |
 | `verifier_session_id` | `sign` params (`sign_presentation`) | string | 7.3 | 0.1.0 |
+| `context` | `trust_evaluated` progress payload (when `verifier_trust_evaluated` is `true`) | object | 7.4 | 0.1.0 |
 | `response_mode` | `sign` params (`sign_presentation`) | string | 3.2.5 | 0.1.0 |
 | `transaction_data` | `sign` params (`sign_presentation`) | object[] | 3.2.5 (gated by the `transaction_data` capability) | 0.1.0 |
 
@@ -616,6 +617,22 @@ The JWK Thumbprint (RFC 7638, SHA-256) of the verifier's response-encryption key
 ### 7.3 `verifier_session_id`
 
 The verifier-assigned identifier of this presentation session. A ZK pseudonym's verifier context binds to the session rather than to the verifier's static identity, so it needs this value rather than `audience` alone. Omitted for non-ZK presentations and for OID4VCI sign sub-flows.
+
+### 7.4 `context` (verifier trust result)
+
+When the engine evaluates verifier trust, the `verifier_trust_evaluated` flow progress (a `trust_evaluated` step whose payload has `verifier_trust_evaluated: true`) MAY carry `context`, containing only `verifier_ids` from the PDP response (omitted if none): a list of `{verifier_id_type, verifier_id, basis?}`, present only when the PDP policy enables it and the identifier was verified. Wallets read the verifier identifier for pseudonym derivation from it. For `x509_san_dns` the value is the bare lower-case DNS name, so the wallet forms the `x509_san_dns:<dns>` prefix itself; semantic ids already carry the `semantic_id:` prefix. Cache hits carry the same context as fresh evaluations.
+
+- The sender MUST NOT forward any other member of the PDP context (such as `reason` or `trust_metadata`), and omits `context` entirely when there are no `verifier_ids`.
+- `verifier_id_type` is an opaque string; `basis` says how the identifier was verified.
+
+```json
+"context": {
+  "verifier_ids": [
+    {"verifier_id_type": "semantic", "verifier_id": "semantic_id:VATSE-556000000101", "basis": "x5c-chain"},
+    {"verifier_id_type": "x509_san_dns", "verifier_id": "verifier.example.com", "basis": "client-id-binding"}
+  ]
+}
+```
 
 ## References
 
