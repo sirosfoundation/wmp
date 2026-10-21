@@ -228,6 +228,26 @@ At least one of `credential_offer` or `credential_offer_uri` MUST be provided.
 | `credentials[].credential` | string | The credential (JWT, SD-JWT, mdoc CBOR) |
 | `credentials[].vct` | string | Verifiable Credential Type identifier |
 | `credentials[].c_nonce` | string | Server nonce for subsequent proofs |
+| `credential_metadata` | object | OPTIONAL. The OpenID4VCI 1.1 response-level `credential_metadata` object (openid/OpenID4VCI#721) of the Credential Response or Deferred Credential Response, relayed verbatim. It applies to every entry of `credentials[]`. See 3.1.4.1 |
+| `credential_metadata_encrypted_response` | boolean | OPTIONAL. `true` only when `credential_metadata` came in a JWE-encrypted issuer response. When `credential_metadata` is present and this member is absent the value arrived as plain JSON, which is always the case for deferred issuance |
+| `refresh_token` | string | OPTIONAL. OAuth refresh token the issuer returned with this batch; the client stores it for renewal. A secret (see 3.1.4.2) |
+| `dpop_jwk` | string | OPTIONAL. Present only with `refresh_token`: the private JWK of the DPoP key the refresh token is bound to. A secret |
+| `dpop_key_id` | string | OPTIONAL. Present only with `refresh_token` when the DPoP key is client-held: the identifier of that key |
+| `redacted_members` | string[] | OPTIONAL. Set by the server only on a *replayed* completion: the names, in alphabetical order, of the secret members withheld from the retained copy (see 3.1.4.2). Never set on the live notification |
+
+##### 3.1.4.1 `credential_metadata`
+
+- The value MUST be a JSON object. The sender relays members verbatim and in order (only insignificant whitespace may change) and preserves members it does not understand. A receiver MUST ignore members it does not understand.
+- The object is shared with display data, which is mostly what it carries (`display[]`, `claims[]`, logo and background images).
+- Extension members use collision-resistant names. The member `org.siros.secret_seed` is defined by the privatedata specification, Section 5A (it is not an OpenID4VCI member). Its value is an object that maps a namespace (1 to 64 UTF-8 bytes, not `namespaces`) to a seed of exactly 32 lowercase hexadecimal characters; it has 1 to 8 members.
+- A completion that carries `org.siros.secret_seed` is valid only if the issuer response was JWE-encrypted (`credential_metadata_encrypted_response` is `true`) and carried a `notification_id`. A wallet MUST refuse the issuance when the member is present and `credential_metadata_encrypted_response` is not `true`, and MUST NOT store anything from it. The remaining wallet obligations (commitment verification, strip-before-merge, storage only inside the encrypted container) are those of privatedata Section 5A.
+- `credential_metadata` MAY carry secrets. Implementations MUST NOT log it, MUST NOT include it in error messages or diagnostics, and MUST NOT retain it in any buffer, replay store or persisted state other than the wallet's secret store.
+
+##### 3.1.4.2 Replay of a completion
+
+The secret members of a completion are `credential_metadata`, `credential_metadata_encrypted_response`, `refresh_token`, `dpop_jwk` and `dpop_key_id`. A server that keeps outbound notifications for replay (for example for SSE `Last-Event-ID` resume or `wmp.session.resume`) MUST NOT retain any of them in the retained copy. The live notification carries them and is delivered only to the connection that is streaming when the completion is emitted. A replayed `wmp.flow.complete` for the same flow omits every secret member that the live one carried, keeps `credentials[]` and all other members unchanged, and carries `"redacted_members"`: an array listing exactly the members that were omitted (for example `["credential_metadata", "credential_metadata_encrypted_response", "dpop_jwk", "dpop_key_id", "refresh_token"]`). It is absent when nothing was omitted and never present on the live notification.
+
+The marker means "withheld", not "the issuer sent none". A client that receives a replayed completion with `redacted_members` MUST treat every listed member as not recoverable: it MUST NOT conclude that the member did not exist, MUST NOT fabricate or substitute a value (in particular no refresh token, DPoP key or secret seed), and MUST treat an issuance that required a listed member (a delivered secret) as failed, to be re-issued. A credential whose `refresh_token` and `dpop_jwk` were withheld cannot be renewed without re-issuance. A client that needs these members therefore has to be connected to the event stream before it starts the flow and stay connected until the completion arrives. Clients dedupe replays by event ID.
 
 #### 3.1.5 Sign Sub-flow
 

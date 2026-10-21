@@ -16,7 +16,17 @@
         "flow_id": { "type": "string" },
         "result": {
           "type": "object",
-          "description": "Flow-type-specific result data."
+          "description": "Flow-type-specific result data.",
+          "properties": {
+            "credential_metadata": { "type": "object", "description": "OpenID4VCI flows: the OpenID4VCI 1.1 response-level credential_metadata object, relayed verbatim. May carry secrets (org.siros.secret_seed): never log or retain it. Absent on a replayed completion, see redacted_members." },
+            "credential_metadata_encrypted_response": { "type": "boolean", "description": "OpenID4VCI flows: true only when credential_metadata came in a JWE-encrypted issuer response." },
+            "refresh_token": { "type": "string", "description": "OpenID4VCI flows: issuer refresh token. A secret; withheld from replayed completions." },
+            "dpop_jwk": { "type": "string", "description": "OpenID4VCI flows: private JWK of the DPoP key the refresh token is bound to. A secret; withheld from replayed completions." },
+            "dpop_key_id": { "type": "string", "description": "OpenID4VCI flows: identifier of the client-held DPoP key. Withheld from replayed completions." },
+            "redacted_members": { "type": "array", "items": { "enum": ["credential_metadata", "credential_metadata_encrypted_response", "dpop_jwk", "dpop_key_id", "refresh_token"] }, "uniqueItems": true, "minItems": 1, "description": "Set only on a replayed completion: the secret members withheld from the retained copy." }
+          },
+          "if": { "required": ["credential_metadata"], "properties": { "credential_metadata": { "required": ["org.siros.secret_seed"] } } },
+          "then": { "required": ["credential_metadata_encrypted_response"], "properties": { "credential_metadata_encrypted_response": { "const": true } } }
         }
       }
     }
