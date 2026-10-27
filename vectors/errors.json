@@ -294,5 +294,38 @@
       }
     },
     "notes": "Session ses-flows-001 negotiated the flows and sign capabilities. Contrast with error-unknown-flow-type."
+  },
+  {
+    "id": "error-plaintext-hash-mismatch",
+    "description": "The decrypted plaintext does not hash to the sender's plaintext_hash commitment.",
+    "conformance_level": "secure",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "msg-err-019",
+      "method": "wmp.message.deliver",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-mls-opt-001",
+          "sender": "x509:san:dns:alice.example.com",
+          "encrypted": true,
+          "epoch": 3
+        },
+        "ciphertext": "dGVzdC1jaXBoZXJ0ZXh0LWV4YW1wbGU",
+        "plaintext_hash": {
+          "algorithm": "sha-256",
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "msg-err-019",
+      "error": {
+        "code": -31019,
+        "message": "Plaintext hash mismatch"
+      }
+    },
+    "notes": "Core Section 3.8.2. The recipient decrypted the ciphertext (a placeholder here, as in message-deliver-encrypted-plaintext-hash), hashed the plaintext content object and got something other than plaintext_hash.value. It does not acknowledge, and error.data carries neither the recomputed hash nor plaintext. NOTE FOR HARNESS OWNERS: go-wmp and wmp-js do not define -31019 yet (go-wmp errors.go, wmp-js ErrorCode), so their structural error check fails on this vector until they do; merge this after both define it."
   }
 ]
