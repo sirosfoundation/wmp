@@ -501,12 +501,13 @@ Towards the wallet the `oid4vp` flow ends with a terminal `wmp.flow.error` on th
 
 ### 3.3 `match` Flow — Local Credential Matching
 
-The `match` flow type lets an orchestrator ask the wallet whether it can satisfy a DCQL query, without learning anything about what the wallet holds beyond the answer. It is a nested flow of an `oid4vp` flow, linked to it by `parent_flow_id`, and is defined by this profile for use with the `oid4vp` capability: a wallet that did not negotiate `oid4vp` is sent no `match` flow, and a `match` start to such a wallet is `-31005` as for any flow type (WMP Core Section 3.8.1). It has no progress steps and no actions.
+The `match` flow type lets an orchestrator ask the wallet whether it can satisfy a DCQL query, without learning anything about what the wallet holds beyond the answer. It is a nested flow of an `oid4vp` flow, linked to it by `parent_flow_id` in its `params`, and is defined by this profile for use with the `oid4vp` capability: a wallet that did not negotiate `oid4vp` is sent no `match` flow, and a `match` start to such a wallet is `-31005` as for any flow type (WMP Core Section 3.8.1). It has no progress steps and no actions.
 
 #### 3.3.1 Start Parameters
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
+| `parent_flow_id` | string | REQUIRED | The `oid4vp` flow this flow belongs to (as for the `sign` sub-flows, Section 3.1.5) |
 | `dcql_query` | object | REQUIRED | The verifier's DCQL query, as validated by the orchestrator |
 | `client_metadata`, `verified_request` | object | OPTIONAL | The request context of Sections 7.1 and 7.5, with the same meaning as in the `sign_presentation` params |
 

@@ -889,8 +889,8 @@
             },
             "flow_type": "sign",
             "flow_id": "flow-vp-001-sign",
-            "parent_flow_id": "flow-vp-001",
             "params": {
+              "parent_flow_id": "flow-vp-001",
               "action": "sign_presentation",
               "nonce": "n-1",
               "audience": "https://verifier.example.com"
@@ -1001,8 +1001,8 @@
             },
             "flow_type": "match",
             "flow_id": "flow-vp-001-match",
-            "parent_flow_id": "flow-vp-001",
             "params": {
+              "parent_flow_id": "flow-vp-001",
               "dcql_query": {
                 "credentials": [
                   {
