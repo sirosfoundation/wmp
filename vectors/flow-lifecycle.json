@@ -1739,7 +1739,7 @@
   },
   {
     "id": "flow-select-credentials-refused-query-id-form",
-    "description": "Negative: query_id that is not a DCQL id (whitespace and punctuation).",
+    "description": "Negative: query_id containing whitespace.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -1765,7 +1765,7 @@
       }
     },
     "must_refuse": true,
-    "notes": "DCQL ids are alphanumeric, underscore or hyphen. That a well-formed query_id occurs in the verifier's query, and is not repeated, is checked by the orchestrator, not by the schema. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+    "notes": "A query id has no whitespace or control characters (DCQL ids are alphanumeric, underscore or hyphen; Presentation Exchange descriptor ids are arbitrary strings). That a well-formed query_id occurs in the verifier's query, and is not repeated, is checked by the orchestrator, not by the schema. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
   },
   {
     "id": "flow-select-credentials-refused-handle-trailing-newline",

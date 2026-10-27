@@ -275,6 +275,8 @@ class FlowActionSelectCredentials(unittest.TestCase):
         self.bad({"consent": True, "selections": [{"query_id": "pid"}]})
         self.bad({"consent": True, "selections": [{"selection_handle": self.H}]})
         self.bad(self.sel(query_id="my pid!"))
+        self.bad(self.sel(query_id="a" * 257))
+        self.ok(self.sel(query_id="id_card.1:\u00e5"))
         self.bad(self.sel(query_id=""))
         self.bad(self.sel(query_id="pid\n"))
 
