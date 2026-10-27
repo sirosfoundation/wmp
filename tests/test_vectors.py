@@ -132,6 +132,9 @@ class TransportVectors(unittest.TestCase):
                     labels.add(step["label"])
                 if "same_response_as" in step:
                     self.assertIn(step["same_response_as"], labels, where)
+                for n in walk([step.get("expect"), step.get("deliver")]):
+                    if isinstance(n, dict) and "absent" in n:
+                        self.assertTrue(all(isinstance(x, str) and x.startswith("/") for x in n["absent"]), where)
                 if "emit" in step:
                     self.assertTrue(step["emit"], where)
 

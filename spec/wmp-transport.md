@@ -209,16 +209,16 @@ A client that receives a `410`:
 
 1. MUST stop reconnecting with that cursor and discard it;
 2. opens a new event stream with no cursor, so that it has a connection to receive on;
-3. then calls `wmp.session.resume` (Section 4.5 of [wmp-core.md](wmp-core.md)) with its `resumption_token`. The notifications the server re-sends as part of that resume (below) are delivered on the stream of step 2. Events emitted between the 410 and the resume are not lost either: they are on that stream.
+3. then calls `wmp.session.resume` (Section 4.5 of [wmp-core.md](wmp-core.md)) with its `resumption_token`. A client whose session create result carried no `resumption_token` (Core Section 4.5.2 makes it a SHOULD) cannot resume; it creates a new session instead. The notifications the server re-sends as part of that resume (below) are delivered on the stream of step 2. Events emitted between the 410 and the resume are not lost either: they are on that stream.
 
 If the resume fails (`-31000` or `-31001`, Section 4.5.4 of [wmp-core.md](wmp-core.md)), the client creates a new session.
 
 The events lost in the gap are not recovered through the event stream, and the protocol has no in-band resynchronisation message. What a client needs to continue is recovered by the resume:
 
 - the latest `wmp.flow.progress` of every active flow (Section 4.5.3 of [wmp-core.md](wmp-core.md)); and
-- the terminal notification (`wmp.flow.complete`, `wmp.flow.error` or the cancellation) of every flow of the session that has ended. A server MUST therefore keep the terminal notification of each flow for the lifetime of the session, outside the event buffer, in its redacted form (Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md)), and MUST re-send those on resume, after the progress notifications. A client that already processed the terminal notification of a flow ignores the repeat. Without this a client whose terminal notification was evicted would wait for a flow that has ended.
+- the terminal notification (`wmp.flow.complete`, `wmp.flow.error` or the cancellation) of every flow of the session that has ended. A server MUST therefore keep the terminal notification of each flow for the lifetime of the session, outside the event buffer, in its redacted form (Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md)), and MUST re-send those on resume, after the progress notifications. A client that already processed the terminal notification of a flow ignores the repeat. The notifications that resume re-sends are new events of the stream: they get fresh event IDs, ordered after every ID issued so far, so the client's cursor only moves forward and a later reconnect replays them once (and no stale progress after them). They are not replays of the original IDs. Without this a client whose terminal notification was evicted would wait for a flow that has ended.
 
-A secret member of a completion that was only ever delivered live is never recovered; the client treats the issuance as Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md) describes. A client that, after the resume, still holds a flow that it never saw end and that the server did not report as active or terminal MUST treat that flow as lost and fail it locally.
+A secret member of a completion that was only ever delivered live is never recovered; the client treats the issuance as Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md) describes. The resume result does not say when the re-sent notifications have all arrived (they come on the event stream, not in the POST response), and an active flow that has not yet emitted progress has nothing to re-send. A client therefore MUST NOT fail a flow only because no notification for it arrived after a resume; the flow's own timeout (Section 6.2.1 of [wmp-core.md](wmp-core.md)) applies.
 
 #### 4.3.5 Heartbeat
 
