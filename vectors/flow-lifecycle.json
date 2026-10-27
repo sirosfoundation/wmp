@@ -1072,5 +1072,423 @@
     },
     "expected_response": null,
     "notes": "code is one of no_match, insufficient, error; required when satisfiable is false, absent otherwise. No free-text reason."
+  },
+  {
+    "id": "flow-vci-replay-redaction-all-secrets",
+    "description": "Live completion with all three secret members: the replayed copy drops them and lists them, sorted.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-010",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "credential_metadata": {
+            "display": [
+              {
+                "name": "Example Credential",
+                "locale": "en"
+              }
+            ],
+            "claims": [
+              {
+                "path": [
+                  "given_name"
+                ],
+                "display": [
+                  {
+                    "name": "Given name"
+                  }
+                ]
+              }
+            ]
+          },
+          "refresh_token": "rt-secret-1",
+          "dpop_jwk": "{\"kty\":\"EC\",\"crv\":\"P-256\",\"d\":\"secret\"}",
+          "dpop_key_id": "key-1"
+        }
+      }
+    },
+    "expected_response": null,
+    "expected_replay": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-010",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "credential_metadata": {
+            "display": [
+              {
+                "name": "Example Credential",
+                "locale": "en"
+              }
+            ],
+            "claims": [
+              {
+                "path": [
+                  "given_name"
+                ],
+                "display": [
+                  {
+                    "name": "Given name"
+                  }
+                ]
+              }
+            ]
+          },
+          "redacted_members": [
+            "dpop_jwk",
+            "dpop_key_id",
+            "refresh_token"
+          ]
+        }
+      }
+    },
+    "notes": "input is the live notification, delivered only to the streaming connection (openid4x 3.1.4.2); expected_replay is what the retained copy yields on replay. credentials and credential_metadata are kept unchanged; redacted_members is exactly the omitted members in alphabetical order."
+  },
+  {
+    "id": "flow-vci-replay-redaction-refresh-token-only",
+    "description": "Only refresh_token present: only it is redacted.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-011",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "credential_metadata": {
+            "display": [
+              {
+                "name": "Example Credential",
+                "locale": "en"
+              }
+            ],
+            "claims": [
+              {
+                "path": [
+                  "given_name"
+                ],
+                "display": [
+                  {
+                    "name": "Given name"
+                  }
+                ]
+              }
+            ]
+          },
+          "refresh_token": "rt-secret-2"
+        }
+      }
+    },
+    "expected_response": null,
+    "expected_replay": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-011",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "credential_metadata": {
+            "display": [
+              {
+                "name": "Example Credential",
+                "locale": "en"
+              }
+            ],
+            "claims": [
+              {
+                "path": [
+                  "given_name"
+                ],
+                "display": [
+                  {
+                    "name": "Given name"
+                  }
+                ]
+              }
+            ]
+          },
+          "redacted_members": [
+            "refresh_token"
+          ]
+        }
+      }
+    },
+    "notes": "redacted_members lists exactly what was omitted: [\"refresh_token\"]."
+  },
+  {
+    "id": "flow-vci-replay-redaction-nothing-to-redact",
+    "description": "No secret member: the replay equals the live notification.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-012",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "credential_metadata": {
+            "display": [
+              {
+                "name": "Example Credential",
+                "locale": "en"
+              }
+            ],
+            "claims": [
+              {
+                "path": [
+                  "given_name"
+                ],
+                "display": [
+                  {
+                    "name": "Given name"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "expected_replay": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-012",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "credential_metadata": {
+            "display": [
+              {
+                "name": "Example Credential",
+                "locale": "en"
+              }
+            ],
+            "claims": [
+              {
+                "path": [
+                  "given_name"
+                ],
+                "display": [
+                  {
+                    "name": "Given name"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "notes": "redacted_members is absent when nothing was omitted, and the retained copy needs no separate live copy: live and replay are the same message."
+  },
+  {
+    "id": "flow-vci-replay-redaction-escaped-member-name",
+    "description": "A secret member whose name is written with a JSON escape is still the secret member.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-013",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "refresh\u005ftoken": "rt-secret-3",
+          "dpop\u005fjwk": "{\"kty\":\"EC\",\"d\":\"s\"}"
+        }
+      }
+    },
+    "expected_response": null,
+    "expected_replay": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-013",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "redacted_members": [
+            "dpop_jwk",
+            "refresh_token"
+          ]
+        }
+      }
+    },
+    "notes": "In the vector file the name appears as \"refresh\\u005ftoken\". After decoding it is refresh_token; an implementation that matches the raw bytes of the name would leak it. The replay is the same as for the unescaped form."
+  },
+  {
+    "id": "flow-vci-replayed-redacted-members-names-metadata-refused",
+    "description": "redacted_members names a member that is not a secret member (credential_metadata).",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-014",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "redacted_members": [
+            "credential_metadata"
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x 3.1.4.2: redacted_members lists exactly the secret members that were omitted, alphabetically, once each, and is absent when nothing was omitted. A client refuses a replayed completion that breaks this."
+  },
+  {
+    "id": "flow-vci-replayed-redacted-members-duplicate-refused",
+    "description": "redacted_members lists a member twice.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-014",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "redacted_members": [
+            "refresh_token",
+            "refresh_token"
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x 3.1.4.2: redacted_members lists exactly the secret members that were omitted, alphabetically, once each, and is absent when nothing was omitted. A client refuses a replayed completion that breaks this."
+  },
+  {
+    "id": "flow-vci-replayed-redacted-members-empty-refused",
+    "description": "redacted_members is present but empty.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-014",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~",
+              "vct": "urn:example:vct"
+            }
+          ],
+          "redacted_members": []
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x 3.1.4.2: redacted_members lists exactly the secret members that were omitted, alphabetically, once each, and is absent when nothing was omitted. A client refuses a replayed completion that breaks this."
   }
 ]
