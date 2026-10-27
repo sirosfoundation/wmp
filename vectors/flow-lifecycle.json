@@ -1277,7 +1277,7 @@
             }
           ],
           "refresh\u005ftoken": "rt-secret-3",
-          "dpop_jwk": "{\"kty\":\"EC\",\"d\":\"s\"}"
+          "dpop\u005fjwk": "{\"kty\":\"EC\",\"d\":\"s\"}"
         }
       }
     },
