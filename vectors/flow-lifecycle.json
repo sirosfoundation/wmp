@@ -1001,8 +1001,8 @@
             },
             "flow_type": "match",
             "flow_id": "flow-vp-001-match",
-            "parent_flow_id": "flow-vp-001",
             "params": {
+              "parent_flow_id": "flow-vp-001",
               "dcql_query": {
                 "credentials": [
                   {
