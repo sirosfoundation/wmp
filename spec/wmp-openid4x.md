@@ -412,6 +412,8 @@ The orchestrator validates `params` against `schema/methods/select-credentials-p
 
 When `consent` is `false` the orchestrator ends the flow as for a user who declined (Section 3.2.6); it does not start a `sign_presentation` sub-flow.
 
+**One naming, everywhere.** The names above are final and are the same on every wire that carries this decision, including an orchestrator's own client protocol (for example a WebSocket flow-action channel that is not WMP): the action is `select_credentials` (not `consent`), its payload is the `params` of this Section (`consent`, `selections[].query_id`, `selections[].selection_handle`; not `selected_credentials`), and the sign request carries `credentials_to_include` as `[{"credential_query_id": ...}]` plus `selection_handle` (Section 3.2.5). An orchestrator MUST NOT accept the old action name or payload shape alongside, and a wallet MUST NOT send it.
+
 **Breaking change.** Earlier drafts carried `selections` of `{credential_id, disclosed_claims}` with `consent`. That shape is a violation of this Section: a receiver that gets it refuses it as above.
 
 #### 3.2.4 Completion Result
