@@ -437,7 +437,7 @@ To obtain the VP token the orchestrator starts a nested `sign` flow with `action
 | `verifier_session_id` | string | OPTIONAL | The verifier's session identifier. See Section 7.3. |
 | `response_mode` | string | OPTIONAL | The `response_mode` of the verifier's request. Required for a request that carries `transaction_data` (EC TS12 puts it in the key binding JWT). |
 | `credentials_to_include` | object[] | OPTIONAL | The credential queries the user consented to answer, each `{"credential_query_id": "<DCQL id>"}` and nothing else: no credential identifier and no claim names (Section 3.2.3.1). The wallet knows which credential and which claims. |
-| `selection_handle` | string | OPTIONAL | The handle of the `select_credentials` action that led here (Section 3.2.3.1), handed back unchanged; the wallet maps it to its own selection. The orchestrator MUST NOT interpret it. See Section 3.3.2. |
+| `selection_handle` | string | REQUIRED when the sub-flow follows a `select_credentials` action with `consent` `true`, otherwise absent | The handle of that action (Section 3.2.3.1), handed back unchanged; the wallet maps it to its own selection. The orchestrator MUST NOT interpret it and MUST NOT alter or omit it; a wallet MUST fail the sub-flow with a `wmp.flow.error` (not `rejected`) if it is missing or unknown. See Section 3.3.2. |
 | `transaction_data` | object[] | OPTIONAL | The request's transaction data, one entry per element of the verifier's array, in the verifier's order. Only present for a wallet that offered the `transaction_data` capability. |
 
 Each `transaction_data` entry has these members:
