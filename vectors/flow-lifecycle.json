@@ -1766,5 +1766,65 @@
     },
     "must_refuse": true,
     "notes": "DCQL ids are alphanumeric, underscore or hyphen. That a well-formed query_id occurs in the verifier's query, and is not repeated, is checked by the orchestrator, not by the schema. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-handle-trailing-newline",
+    "description": "Negative: a handle followed by a line terminator.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-900",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ\n"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "The alphabet check covers the whole string; a trailing newline is not base64url. A conforming orchestrator refuses it by answering the action request with a correlated JSON-RPC error -32602 without data, and ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params; it reports access_denied to the verifier and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-query-id-trailing-newline",
+    "description": "Negative: a query_id followed by a line terminator.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-900",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid\n",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "The id check covers the whole string. A conforming orchestrator refuses it by answering the action request with a correlated JSON-RPC error -32602 without data, and ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params; it reports access_denied to the verifier and does not log, store or forward the offending members."
   }
 ]

@@ -230,6 +230,7 @@ class FlowCompleteMatchResult(unittest.TestCase):
         self.assertNotEqual(e({"satisfiable": True, "selection_handle": "A" * 25}), [])
         self.assertEqual(e({"satisfiable": True, "selection_handle": "A" * 23}), [])
         self.assertNotEqual(e({"satisfiable": True, "claims": {"a": "b"}}), [])
+        self.assertNotEqual(e({"satisfiable": True, "selection_handle": "A" * 24 + "\n"}), [])
 
 
 class FlowActionSelectCredentials(unittest.TestCase):
@@ -275,9 +276,10 @@ class FlowActionSelectCredentials(unittest.TestCase):
         self.bad({"consent": True, "selections": [{"selection_handle": self.H}]})
         self.bad(self.sel(query_id="my pid!"))
         self.bad(self.sel(query_id=""))
+        self.bad(self.sel(query_id="pid\n"))
 
     def test_handle_format(self):
-        for h in ("short", self.H + "==", "A" * 25, "Zm9yLXRoZS13YWxsZXQ+b25seQ", 5, None):
+        for h in ("short", self.H + "==", "A" * 25, "A" * 22 + "\n", "A" * 24 + "\n", "Zm9yLXRoZS13YWxsZXQ+b25seQ", 5, None):
             self.bad(self.sel(selection_handle=h))
         self.ok(self.sel(selection_handle="A" * 22))
         self.ok(self.sel(selection_handle="A" * 24))

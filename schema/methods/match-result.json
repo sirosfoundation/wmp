@@ -9,7 +9,7 @@
   "properties": {
     "satisfiable": { "type": "boolean" },
     "satisfiable_query_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-    "selection_handle": { "type": "string", "minLength": 22, "pattern": "^([A-Za-z0-9_-]{4})*([A-Za-z0-9_-]{2,3})?$" },
+    "selection_handle": { "type": "string", "minLength": 22, "pattern": "^([A-Za-z0-9_-]{4})*([A-Za-z0-9_-]{2,3})?(?![\\s\\S])" },
     "code": { "enum": ["no_match", "insufficient", "error"] }
   },
   "if": { "properties": { "satisfiable": { "const": false } } },
