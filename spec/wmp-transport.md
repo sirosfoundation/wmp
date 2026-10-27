@@ -177,7 +177,6 @@ Two terms are used below: the **event buffer** is the bounded per-session record
 - The session ID is assigned by the server. It is returned in `wmp.session_id` of the `wmp.session.create` result (Section 4.1 of [wmp-core.md](wmp-core.md)). A `wmp.session.create` request MUST NOT carry a session ID, in the `wmp` metadata object or in the `Wmp-Session-Id` header; a server MUST refuse one that does with `-32602` (Invalid params) and MUST NOT create a session under a client-chosen ID. Session IDs MUST carry at least 128 bits of entropy from a cryptographically secure source.
 - Every POST and every GET of this binding MUST be authenticated (Section 4.4 of [wmp-core.md](wmp-core.md)), and the server MUST bind the session to the authenticated principal that created it. A request with no valid credentials MUST be answered with HTTP `401`.
 - A request that names a session that does not exist and a request that names a session owned by a different principal MUST be indistinguishable to the caller: same HTTP status (`404` for a GET of the event stream), same body, and for a POST the same JSON-RPC error `-31000` (Session not found). A server MUST NOT reveal that a session ID exists to a principal that does not own it.
-- A server that creates sessions without authentication (a session whose create result does not require it, Section 4.4.4 of [wmp-core.md](wmp-core.md)) cannot bind the session to a principal; for such a session the session ID is the only credential. It MUST then be treated as a bearer secret: it MUST NOT be logged or put in a URL that is not TLS-protected, and the server SHOULD NOT offer session resumption for it.
 
 #### 4.3.2 Event IDs
 
@@ -202,19 +201,24 @@ Replayed events are retained copies. A server that retains outbound notification
 
 A server MUST bound the event buffer of every session, by event count and SHOULD also by total size, so that a slow or absent client cannot make it grow without limit. A server SHOULD retain at least the 200 most recent events of a session. The oldest events are evicted first. Eviction is not announced.
 
-A **gap** exists when the server cannot replay every event emitted after the cursor. This is the case when the cursor is not in the buffer because it was evicted, when it was never issued for this session, and when the session's buffer was discarded (for example after a server restart). A server cannot always tell these apart and MUST treat them the same way.
+A **gap** exists when the server cannot replay every event emitted after the cursor. Eviction of the cursor event itself is not a gap: the cursor names an event the client already has, so what matters is whether its successor is still held. To tell, a server keeps, besides the buffered events, the ID of the newest event it has evicted (the eviction watermark). A cursor is replayable when it is the watermark or any retained event; it presents a gap when it is older than the watermark, or when the server does not recognise it as an ID it issued for this session (never issued, or the session's buffer and watermark were discarded, for example by a restart). A server cannot always tell the unrecognised cases apart from an evicted one and MUST treat them the same way.
 
 When the cursor presents a gap, the server MUST answer the GET with HTTP `410` (Gone) and MUST NOT open the event stream, so that no part of the replay is delivered. The body is OPTIONAL; if present it is `application/json` and is a JSON-RPC error object. A `410` is not a transport failure to be retried with the same cursor.
 
 A client that receives a `410`:
 
 1. MUST stop reconnecting with that cursor and discard it;
-2. MUST call `wmp.session.resume` (Section 4.5 of [wmp-core.md](wmp-core.md)) with its `resumption_token` to recover session state; the server re-sends the latest `wmp.flow.progress` of every active flow as part of that resume (Section 4.5.3 of [wmp-core.md](wmp-core.md));
-3. then opens a new event stream with no cursor.
+2. opens a new event stream with no cursor, so that it has a connection to receive on;
+3. then calls `wmp.session.resume` (Section 4.5 of [wmp-core.md](wmp-core.md)) with its `resumption_token`. The notifications the server re-sends as part of that resume (below) are delivered on the stream of step 2. Events emitted between the 410 and the resume are not lost either: they are on that stream.
 
 If the resume fails (`-31000` or `-31001`, Section 4.5.4 of [wmp-core.md](wmp-core.md)), the client creates a new session.
 
-Events lost in the gap are not recoverable through the event stream, and the protocol has no in-band resynchronisation message. A flow whose terminal message fell in the gap is recovered by the resume and by the flow's own recovery rules (Section 6.2.1 of [wmp-core.md](wmp-core.md)). A secret member of a completion that was only ever delivered live is never recovered; the client treats the issuance as Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md) describes.
+The events lost in the gap are not recovered through the event stream, and the protocol has no in-band resynchronisation message. What a client needs to continue is recovered by the resume:
+
+- the latest `wmp.flow.progress` of every active flow (Section 4.5.3 of [wmp-core.md](wmp-core.md)); and
+- the terminal notification (`wmp.flow.complete`, `wmp.flow.error` or the cancellation) of every flow of the session that has ended. A server MUST therefore keep the terminal notification of each flow for the lifetime of the session, outside the event buffer, in its redacted form (Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md)), and MUST re-send those on resume, after the progress notifications. A client that already processed the terminal notification of a flow ignores the repeat. Without this a client whose terminal notification was evicted would wait for a flow that has ended.
+
+A secret member of a completion that was only ever delivered live is never recovered; the client treats the issuance as Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md) describes. A client that, after the resume, still holds a flow that it never saw end and that the server did not report as active or terminal MUST treat that flow as lost and fail it locally.
 
 #### 4.3.5 Heartbeat
 
