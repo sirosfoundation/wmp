@@ -1507,7 +1507,7 @@ Resolution failures use standard WMP error responses:
   "error": {
     "code": -31005,
     "message": "Resolution type not supported",
-    "data": {"type": "smp"}
+    "data": {"unsupported": "smp", "type": "smp"}
   }
 }
 ```

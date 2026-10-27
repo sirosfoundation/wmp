@@ -141,6 +141,11 @@ class StillStrict(unittest.TestCase):
         self.bad("methods/flow-start.json", with_(FLOW_START, ["params", "flow_id"], 5))
         self.bad("methods/flow-start.json",
                  with_(FLOW_START, ["params", "wmp", "version"], "v1"))
+        for v in ("0.01", "01.1", "0.1.0", "", "1."):
+            self.bad("methods/flow-start.json", with_(FLOW_START, ["params", "wmp", "version"], v))
+        for v in ("0.1", "0.10", "10.0"):
+            self.assertEqual(errors("methods/flow-start.json",
+                                    with_(FLOW_START, ["params", "wmp", "version"], v)), [])
         self.bad("methods/flow-start.json",
                  with_(FLOW_START, ["params", "wmp", "epoch"], -1))
         self.bad("methods/flow-start.json", with_(FLOW_START, ["method"], "wmp.other"))
