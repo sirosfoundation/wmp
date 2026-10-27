@@ -1,0 +1,2820 @@
+[
+  {
+    "id": "transport-session-create-server-assigned-id",
+    "description": "The server assigns the session ID; the create request carries none.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session over POST, with no session ID anywhere",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "notes": "session_id is server-generated and unguessable (at least 128 bits). The harness captures it as {{sid}} for later steps."
+  },
+  {
+    "id": "transport-session-create-client-chosen-id-refused",
+    "description": "A create request that proposes a session ID is refused.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "create with a client-chosen session_id in the wmp metadata",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com",
+                "session_id": "ses-chosen-by-client"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "error": {
+              "code": -32602,
+              "message": "Invalid params"
+            }
+          }
+        }
+      },
+      {
+        "step": "create with a client-chosen Wmp-Session-Id header",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Wmp-Session-Id": "ses-chosen-by-client"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "error": {
+              "code": -32602,
+              "message": "Invalid params"
+            }
+          }
+        }
+      }
+    ],
+    "notes": "No session exists under ses-chosen-by-client afterwards: a GET for it is the same 404 as for any unknown session."
+  },
+  {
+    "id": "transport-events-unauthenticated",
+    "description": "An event stream request without credentials is answered 401.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "GET /wmp/events with no Authorization header",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 401
+        }
+      }
+    ]
+  },
+  {
+    "id": "transport-events-not-owner-indistinguishable",
+    "description": "A session owned by someone else and a session that does not exist give the same response.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "bob asks for alice's session",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer bob",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 404
+        },
+        "label": "not-owner"
+      },
+      {
+        "step": "bob asks for a session that does not exist",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "ses-does-not-exist"
+          },
+          "headers": {
+            "Authorization": "Bearer bob",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 404
+        },
+        "same_response_as": "not-owner"
+      }
+    ],
+    "notes": "Status, headers other than Date, and body are identical. A POST for either gives the same JSON-RPC error -31000."
+  },
+  {
+    "id": "transport-sse-event-ids",
+    "description": "Every event carries an id; ids are strictly ordered by emission.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "server emits two notifications before any stream is open",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-2"
+            }
+          }
+        ]
+      },
+      {
+        "step": "alice opens a stream with no cursor: nothing is replayed",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "content_type": "text/event-stream",
+          "events": []
+        }
+      },
+      {
+        "step": "server emits three notifications",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-3"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-4"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-5"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e3"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-3"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e4"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-4"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e5"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-5"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "notes": "Ids are opaque: the harness only captures them and checks that they are distinct; it never assumes they are numeric or contiguous. Their ordering is exercised by the replay vectors that follow. A stream with no cursor starts at the next event."
+  },
+  {
+    "id": "transport-sse-replay-last-event-id-header",
+    "description": "Reconnect with the Last-Event-ID header replays exactly the events after the cursor.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "server emits five notifications",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-2"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-3"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-4"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-5"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e2"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-2"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e3"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-3"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e4"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-4"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e5"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-5"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with Last-Event-ID = e2",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e2}}"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": [
+            {
+              "event": "wmp",
+              "id": "{{e3}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "step": "step-3"
+                }
+              }
+            },
+            {
+              "event": "wmp",
+              "id": "{{e4}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "step": "step-4"
+                }
+              }
+            },
+            {
+              "event": "wmp",
+              "id": "{{e5}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "step": "step-5"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "step": "server emits one more: delivered live after the replay, with a new id",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-6"
+            }
+          }
+        ],
+        "deliver": {
+          "A2": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e6"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-6"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "notes": "The event the cursor names (e2) is not sent again. Replayed events keep their original ids."
+  },
+  {
+    "id": "transport-sse-replay-last-event-id-query",
+    "description": "The last_event_id query parameter works when the header cannot be set.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "server emits five notifications",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-2"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-3"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-4"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-5"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e2"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-2"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e3"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-3"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e4"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-4"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e5"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-5"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with ?last_event_id=e4",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}",
+            "last_event_id": "{{e4}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": [
+            {
+              "event": "wmp",
+              "id": "{{e5}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "step": "step-5"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "transport-sse-replay-header-wins",
+    "description": "When both forms are present the header is the cursor.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "server emits five notifications",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-2"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-3"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-4"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-5"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e2"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-2"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e3"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-3"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e4"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-4"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e5"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-5"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with Last-Event-ID = e4 and last_event_id = e1",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}",
+            "last_event_id": "{{e1}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e4}}"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": [
+            {
+              "event": "wmp",
+              "id": "{{e5}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "step": "step-5"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "transport-sse-replay-newest-cursor",
+    "description": "A cursor at the newest event replays nothing.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "server emits five notifications",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-2"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-3"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-4"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-5"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e2"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-2"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e3"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-3"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e4"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-4"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e5"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-5"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with Last-Event-ID = e5",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e5}}"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      }
+    ]
+  },
+  {
+    "id": "transport-sse-replay-oldest-retained-boundary",
+    "description": "A cursor whose next event is still in the buffer is not a gap.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 3,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              },
+              "resumption_token": {
+                "capture": "rt"
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "server emits five notifications; the buffer keeps the newest three (e3, e4, e5)",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-2"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-3"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-4"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-5"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e2"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-2"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e3"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-3"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e4"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-4"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e5"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-5"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with Last-Event-ID = e2: e3 is the oldest retained event",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e2}}"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": [
+            {
+              "event": "wmp",
+              "id": "{{e3}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "step": "step-3"
+                }
+              }
+            },
+            {
+              "event": "wmp",
+              "id": "{{e4}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "step": "step-4"
+                }
+              }
+            },
+            {
+              "event": "wmp",
+              "id": "{{e5}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "step": "step-5"
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "notes": "Buffer of three events. The boundary is the event after the cursor, not the cursor itself."
+  },
+  {
+    "id": "transport-sse-gap-410-then-resume",
+    "description": "A cursor whose next event was evicted is a gap: 410, then the client resumes.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 3,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              },
+              "resumption_token": {
+                "capture": "rt"
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "server emits five notifications; the buffer keeps the newest three (e3, e4, e5)",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-2"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-3"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-4"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-5"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e2"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-2"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e3"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-3"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e4"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-4"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e5"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-5"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with Last-Event-ID = e1: e2 was evicted",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e1}}"
+          }
+        },
+        "expect": {
+          "status": 410,
+          "stream": false
+        }
+      },
+      {
+        "step": "the client discards its cursor and resumes the session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Wmp-Session-Id": "{{sid}}"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "r1",
+            "method": "wmp.session.resume",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "session_id": "{{sid}}",
+              "resumption_token": "{{rt}}"
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "r1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "resumed": true,
+              "resumption_token": {
+                "capture": "rt2"
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "then opens a stream with no cursor: no replay, no 410",
+        "conn": "A3",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      }
+    ],
+    "notes": "{{rt}} is the resumption_token of the create result. The server MUST NOT send any part of the replay with the 410."
+  },
+  {
+    "id": "transport-sse-gap-unknown-cursor",
+    "description": "A cursor the server never issued for this session is a gap.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream with a cursor that was never issued",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "never-issued-0"
+          }
+        },
+        "expect": {
+          "status": 410,
+          "stream": false
+        }
+      }
+    ],
+    "notes": "Evicted, never issued and discarded buffers are not distinguishable, so all give 410."
+  },
+  {
+    "id": "transport-sse-heartbeat",
+    "description": "An idle stream receives comment-line heartbeats that carry no id.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream and stays idle for 35 seconds",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "idle_seconds": 35,
+        "expect": {
+          "status": 200,
+          "events": [],
+          "comments_at_least": 1,
+          "comments_carry_no_id": true
+        }
+      },
+      {
+        "step": "server emits one notification: the cursor is that event's id, not a heartbeat's",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with Last-Event-ID = e1: nothing to replay",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e1}}"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      }
+    ],
+    "notes": "Comment lines begin with ':' and are not WMP messages. The harness advances its (simulated) clock; it does not sleep."
+  },
+  {
+    "id": "transport-sse-replay-redacts-secret-members",
+    "description": "The live completion carries the secrets; the replayed copy omits them and says so.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 200,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "alice opens a stream",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "server emits a progress notification",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "server emits the completion; the streaming connection gets the live copy",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.complete",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-vci-001",
+              "result": {
+                "credentials": [
+                  {
+                    "format": "mso_mdoc"
+                  }
+                ],
+                "refresh_token": "rt-secret-1",
+                "dpop_jwk": "{\"kty\":\"EC\",\"d\":\"secret\"}",
+                "dpop_key_id": "key-1"
+              }
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e2"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.complete",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-vci-001",
+                    "result": {
+                      "credentials": [
+                        {
+                          "format": "mso_mdoc"
+                        }
+                      ],
+                      "refresh_token": "rt-secret-1",
+                      "dpop_jwk": "{\"kty\":\"EC\",\"d\":\"secret\"}",
+                      "dpop_key_id": "key-1"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with Last-Event-ID = e1: the replayed completion is redacted",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e1}}"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": [
+            {
+              "event": "wmp",
+              "id": "{{e2}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.complete",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-vci-001",
+                  "result": {
+                    "credentials": [
+                      {
+                        "format": "mso_mdoc"
+                      }
+                    ],
+                    "redacted_members": [
+                      "dpop_jwk",
+                      "dpop_key_id",
+                      "refresh_token"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "notes": "wmp-openid4x Section 3.1.4.2. The retained copy never held the secret members; the replayed copy keeps the live copy's id, so a client that already processed the live one dedupes it."
+  }
+]
