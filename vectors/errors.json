@@ -296,6 +296,37 @@
     "notes": "Session ses-flows001 negotiated the flows and sign capabilities. Contrast with error-unknown-flow-type."
   },
   {
+    "id": "error-deliver-to-orchestrator-no-participant",
+    "description": "A wmp.message.deliver request to a flow-orchestrating responder with no other participant is -31008.",
+    "conformance_level": "basic",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "msg-err-008",
+      "method": "wmp.message.deliver",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-orch001",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "to": [
+          "x509:san:dns:bob.example.com"
+        ],
+        "content_type": "text/plain",
+        "body": "Hello"
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "msg-err-008",
+      "error": {
+        "code": -31008,
+        "message": "Participant not found"
+      }
+    },
+    "notes": "Core Section 5.1. Session ses-orch001 is a tls session whose only participant is the wallet, served by an orchestrator that runs flows and routes no messages. The message is not handed to the flow engine and is not acknowledged. An inbound wmp.message.ack or wmp.message.status notification to such a responder is logged and counted, produces no response, and is not routed to the flow engine."
+  },
+  {
     "id": "error-plaintext-hash-mismatch",
     "description": "The decrypted plaintext does not hash to the sender's plaintext_hash commitment.",
     "conformance_level": "secure",

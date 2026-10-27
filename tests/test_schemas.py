@@ -181,6 +181,57 @@ class FlowCompleteVectors(unittest.TestCase):
         self.assertGreaterEqual(refused, 4)
 
 
+class FlowCompleteMatchResult(unittest.TestCase):
+    """openid4x 3.3: a match result is a closed set."""
+
+    def msg(self, result):
+        return {"jsonrpc": "2.0", "method": "wmp.flow.complete",
+                "params": {"wmp": WMP, "flow_id": "f1-match", "result": result}}
+
+    def ok(self, result):
+        self.assertEqual(errors("methods/flow-complete.json", self.msg(result)), [])
+
+    def bad(self, result):
+        self.assertNotEqual(errors("methods/flow-complete.json", self.msg(result)), [], result)
+
+    def test_valid(self):
+        self.ok({"satisfiable": True, "satisfiable_query_ids": ["pid"],
+                 "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"})
+        self.ok({"satisfiable": False, "code": "no_match"})
+
+    def test_closed_set(self):
+        for extra in ({"claims": {"a": "b"}}, {"vct": "x"}, {"credential_id": "c"},
+                      {"no_match_reason": "text"}, {"disclosures": ["x"]},
+                      {"credentials": [{"format": "dc+sd-jwt"}]}, {"wallet_version": "1"}):
+            self.bad(dict({"satisfiable": True}, **extra))
+
+    def test_code_rules(self):
+        self.bad({"satisfiable": True, "code": "error"})
+        self.bad({"satisfiable": False})
+        self.bad({"satisfiable": False, "code": "no PID found"})
+        self.bad({"satisfiable": True, "satisfiable_query_ids": [{"id": "pid"}]})
+        self.bad({"satisfiable": True, "satisfiable_query_ids": ["pid", "pid"]})
+        self.bad({"satisfiable": True, "selection_handle": "short"})
+        # 25 characters: an unpadded base64url string cannot have length 1 mod 4
+        self.bad({"satisfiable": True, "selection_handle": "A" * 25})
+        self.ok({"satisfiable": True, "selection_handle": "A" * 24})
+        self.ok({"satisfiable": True, "selection_handle": "A" * 22})
+
+    def test_match_result_schema_selected_by_flow_type(self):
+        """schema/methods/match-result.json applies to every result of a match flow,
+        including one that leaves out satisfiable."""
+        def e(r):
+            return errors("methods/match-result.json", r)
+        self.assertEqual(e({"satisfiable": True, "satisfiable_query_ids": ["pid"]}), [])
+        self.assertEqual(e({"satisfiable": False, "code": "no_match"}), [])
+        self.assertNotEqual(e({"code": "no_match", "credential_id": "cred-001"}), [])
+        self.assertNotEqual(e({"code": "no_match"}), [])
+        self.assertNotEqual(e({}), [])
+        self.assertNotEqual(e({"satisfiable": True, "selection_handle": "A" * 25}), [])
+        self.assertEqual(e({"satisfiable": True, "selection_handle": "A" * 23}), [])
+        self.assertNotEqual(e({"satisfiable": True, "claims": {"a": "b"}}), [])
+
+
 class FlowCompleteBlindIssuance(unittest.TestCase):
     """Engine-blind issuance (Section 3.1.5.1): the seed is never relayed."""
 

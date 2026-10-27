@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/leifj/wmp/schema/methods/match-result.json",
+  "title": "match flow result",
+  "description": "The result of a wmp.flow.complete for a flow of type match (wmp-openid4x Section 3.3.2). An orchestrator selects this schema by the flow type it recorded for the flow_id when the flow started, never by members of the result, so a result that omits satisfiable is refused. A closed set: nothing but the four members below can be present, so no claim, disclosure, credential, credential id, vct, format, issuer or free text can ride along. That each satisfiable_query_ids element is an id of the verifier's query is checked by the orchestrator, which holds the query.",
+  "type": "object",
+  "required": ["satisfiable"],
+  "additionalProperties": false,
+  "properties": {
+    "satisfiable": { "type": "boolean" },
+    "satisfiable_query_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "selection_handle": { "type": "string", "minLength": 22, "pattern": "^([A-Za-z0-9_-]{4})*([A-Za-z0-9_-]{2,3})?$" },
+    "code": { "enum": ["no_match", "insufficient", "error"] }
+  },
+  "if": { "properties": { "satisfiable": { "const": false } } },
+  "then": { "required": ["code"] },
+  "else": { "not": { "required": ["code"] } }
+}
