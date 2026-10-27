@@ -237,8 +237,8 @@ At least one of `credential_offer` or `credential_offer_uri` MUST be provided.
 
 ##### 3.1.4.1 `credential_metadata`
 
-- Present only for a plain issuer response, and then only with the members `display` and `claims`, relayed as received. The sender drops every other member (extension members, including `org.siros.secret_seed`) and never relays or logs them. A receiver MUST ignore members it does not understand.
-- A plain issuer response that carries `org.siros.secret_seed` is refused by the server (the issuance fails); a seed is delivered only in an encrypted response, which the client decrypts itself (3.1.5.1). Seed validation and storage are the wallet's obligations (privatedata Section 5A).
+- Present only for a plain issuer response, and then only with the members `display` and `claims`, relayed as received. The sender drops every other member (extension members, including `auxiliary_data`) and never relays or logs them. A receiver MUST ignore members it does not understand.
+- A plain issuer response that carries `auxiliary_data` is refused by the server (the issuance fails); `auxiliary_data` is delivered only in an encrypted response, which the client decrypts itself (3.1.5.1). Validation and storage of it are the wallet's obligations.
 
 ##### 3.1.4.2 Replay of a completion
 
@@ -301,7 +301,7 @@ The server never holds a credential-response key and never decrypts the issuer's
 }
 ```
 
-`alg` and `enc` are the pair negotiated from the issuer metadata (`ECDH-ES`, `ECDH-ES+A128KW`, `ECDH-ES+A192KW`, `ECDH-ES+A256KW` with `A128GCM`, `A256GCM`, `A128CBC-HS256`, `A256CBC-HS512`); the issuer's JWE MUST use exactly that pair. `required` is `true` when the issuer requires encryption or advertises `org.siros.secret_seed`. The client generates a fresh ephemeral P-256 key per `generate_proof` request, keeps the private key, and returns the public JWK in the sign result as `credential_response_encryption_jwk` (`{"kty":"EC","crv":"P-256","x":"...","y":"...","use":"enc","alg":"<negotiated>"}`, `kid` optional). Absent or empty means declined; with `required: true` the server fails the issuance. An unusable JWK fails the issuance. A `generate_proof` that carries `credential_response_encryption` and neither `proof_type` nor `proof_types_supported` is a request for the key alone: the client returns `credential_response_encryption_jwk` and no proofs. Any request that carries `proof_type` or `proof_types_supported`, with or without `credential_response_encryption`, asks for proofs as in Section 3.1.5, so a request that predates this section keeps its meaning.
+`alg` and `enc` are the pair negotiated from the issuer metadata (`ECDH-ES`, `ECDH-ES+A128KW`, `ECDH-ES+A192KW`, `ECDH-ES+A256KW` with `A128GCM`, `A256GCM`, `A128CBC-HS256`, `A256CBC-HS512`); the issuer's JWE MUST use exactly that pair. `required` is `true` when the issuer requires encryption. The client generates a fresh ephemeral P-256 key per `generate_proof` request, keeps the private key, and returns the public JWK in the sign result as `credential_response_encryption_jwk` (`{"kty":"EC","crv":"P-256","x":"...","y":"...","use":"enc","alg":"<negotiated>"}`, `kid` optional). Absent or empty means declined; with `required: true` the server fails the issuance. An unusable JWK fails the issuance. A `generate_proof` that carries `credential_response_encryption` and neither `proof_type` nor `proof_types_supported` is a request for the key alone: the client returns `credential_response_encryption_jwk` and no proofs. Any request that carries `proof_type` or `proof_types_supported`, with or without `credential_response_encryption`, asks for proofs as in Section 3.1.5, so a request that predates this section keeps its meaning.
 
 When the issuer answers with a JWE (for the Credential Request or a Deferred Credential Request) the server starts a sign sub-flow with action `decrypt_credential_response`:
 
