@@ -2361,7 +2361,7 @@
               {
                 "event": "wmp",
                 "id": {
-                  "any": true
+                  "capture": "e6"
                 },
                 "data": {
                   "jsonrpc": "2.0",
@@ -2720,7 +2720,7 @@
               {
                 "event": "wmp",
                 "id": {
-                  "any": true
+                  "capture": "e6"
                 },
                 "data": {
                   "jsonrpc": "2.0",
@@ -2738,7 +2738,7 @@
               {
                 "event": "wmp",
                 "id": {
-                  "any": true
+                  "capture": "e7"
                 },
                 "data": {
                   "jsonrpc": "2.0",
@@ -2760,9 +2760,94 @@
             ]
           }
         }
+      },
+      {
+        "step": "the re-sent notifications were fresh events: a reconnect with the old cursor e5 replays exactly them, once, and no stale progress",
+        "close": "A3"
+      },
+      {
+        "step": "reconnect with Last-Event-ID = e5",
+        "conn": "A4",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e5}}"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": [
+            {
+              "event": "wmp",
+              "id": "{{e6}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.progress",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-2",
+                  "step": "step-3"
+                }
+              }
+            },
+            {
+              "event": "wmp",
+              "id": "{{e7}}",
+              "data": {
+                "jsonrpc": "2.0",
+                "method": "wmp.flow.error",
+                "params": {
+                  "wmp": {
+                    "version": "0.1",
+                    "session_id": "{{sid}}"
+                  },
+                  "flow_id": "flow-1",
+                  "code": -31006,
+                  "message": "declined",
+                  "data": {
+                    "reason": "rejected"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "step": "reconnect after them: the cursor only moved forward",
+        "close": "A4"
+      },
+      {
+        "step": "reconnect with Last-Event-ID = e7",
+        "conn": "A5",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e7}}"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
       }
     ],
-    "notes": "Core Section 4.5.3, Transport Section 4.3.4. The server keeps terminal notifications for the session lifetime outside the buffer (redacted form). A client that already processed one ignores the repeat."
+    "notes": "Core Section 4.5.3, Transport Section 4.3.4. The server keeps terminal notifications for the session lifetime outside the buffer (redacted form). The resume re-sends them as new events with fresh ids (e6, e7); a client that already processed one ignores the repeat."
   },
   {
     "id": "transport-sse-gap-unknown-cursor",
@@ -3214,7 +3299,12 @@
                     ]
                   }
                 }
-              }
+              },
+              "absent": [
+                "/params/result/refresh_token",
+                "/params/result/dpop_jwk",
+                "/params/result/dpop_key_id"
+              ]
             }
           ]
         }
