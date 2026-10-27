@@ -233,13 +233,13 @@ class FlowCompleteMatchResult(unittest.TestCase):
 
 
 class FlowCompleteBlindIssuance(unittest.TestCase):
-    """Engine-blind issuance (Section 3.1.5.1): the seed is never relayed."""
+    """Engine-blind issuance (Section 3.1.5.1): auxiliary_data is never relayed."""
 
     BASE = {"jsonrpc": "2.0", "method": "wmp.flow.complete",
             "params": {"wmp": WMP, "flow_id": "f1",
                        "result": {"credentials": [{"format": "mso_mdoc"}],
                                   "credential_response_encrypted": True}}}
-    SEED = {"org.siros.secret_seed": {"nym": "00" * 16}}
+    AUX = {"auxiliary_data": {"example": "00" * 16}}
 
     def test_encrypted_ok(self):
         self.assertEqual(errors("methods/flow-complete.json", self.BASE), [])
@@ -254,9 +254,9 @@ class FlowCompleteBlindIssuance(unittest.TestCase):
                      [{"format": "mso_mdoc", "credential": "x"}])
         self.assertNotEqual(errors("methods/flow-complete.json", inst), [])
 
-    def test_seed_in_any_completion_refused(self):
+    def test_auxiliary_data_in_any_completion_refused(self):
         plain = without(self.BASE, ["params", "result", "credential_response_encrypted"])
-        inst = with_(plain, ["params", "result", "credential_metadata"], self.SEED)
+        inst = with_(plain, ["params", "result", "credential_metadata"], self.AUX)
         self.assertNotEqual(errors("methods/flow-complete.json", inst), [])
 
     def test_plain_display_metadata_ok(self):

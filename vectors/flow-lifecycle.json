@@ -145,7 +145,7 @@
       }
     },
     "expected_response": null,
-    "notes": "The server relayed the issuer's JWE unread, so credentials[] entries carry no credential value and the completion carries no credential_metadata (a seed, if any, reached the client inside the JWE it decrypted itself). The client pairs credentials[0] with the first credential it decrypted; a count mismatch is an error. refresh_token, dpop_jwk and dpop_key_id are secrets: none is retained in any replay buffer. Values are test values."
+    "notes": "The server relayed the issuer's JWE unread, so credentials[] entries carry no credential value and the completion carries no credential_metadata (auxiliary_data, if any, reached the client inside the JWE it decrypted itself). The client pairs credentials[0] with the first credential it decrypted; a count mismatch is an error. refresh_token, dpop_jwk and dpop_key_id are secrets: none is retained in any replay buffer. Values are test values."
   },
   {
     "id": "flow-vci-complete-credential-metadata-deferred-display",
@@ -213,8 +213,8 @@
     "notes": "Sent only from a replay buffer (Last-Event-ID or resume). The client must treat every listed member as not recoverable: no inferring that the issuer sent none, no inventing a refresh token or DPoP key; an issuance that required one is re-issued, and the credential cannot be renewed without re-issuance."
   },
   {
-    "id": "flow-vci-complete-plain-seed-refused",
-    "description": "Negative: org.siros.secret_seed in the credential_metadata of a plain (unencrypted) completion.",
+    "id": "flow-vci-complete-plain-auxiliary-data-refused",
+    "description": "Negative: auxiliary_data in the credential_metadata of a plain (unencrypted) completion.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -233,8 +233,8 @@
             }
           ],
           "credential_metadata": {
-            "org.siros.secret_seed": {
-              "nym": "00112233445566778899aabbccddeeff"
+            "auxiliary_data": {
+              "example": "00112233445566778899aabbccddeeff"
             }
           }
         }
@@ -242,11 +242,11 @@
     },
     "expected_response": null,
     "must_refuse": true,
-    "notes": "A seed is never relayed in a completion. A server fails the issuance when a plain issuer response carries one and never emits this shape; a client that receives it MUST refuse the issuance and store nothing from it."
+    "notes": "auxiliary_data is never relayed in a completion. A server fails the issuance when a plain issuer response carries it and never emits this shape; a client that receives it MUST refuse the issuance and store nothing from it."
   },
   {
-    "id": "flow-vci-complete-encrypted-seed-leaked-refused",
-    "description": "Negative: an encrypted-response completion that relays org.siros.secret_seed in credential_metadata.",
+    "id": "flow-vci-complete-encrypted-auxiliary-data-leaked-refused",
+    "description": "Negative: an encrypted-response completion that relays auxiliary_data in credential_metadata.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -265,8 +265,8 @@
           ],
           "credential_response_encrypted": true,
           "credential_metadata": {
-            "org.siros.secret_seed": {
-              "nym": "00112233445566778899aabbccddeeff"
+            "auxiliary_data": {
+              "example": "00112233445566778899aabbccddeeff"
             }
           }
         }
@@ -274,7 +274,7 @@
     },
     "expected_response": null,
     "must_refuse": true,
-    "notes": "With credential_response_encrypted true the server never relays credential_metadata, least of all a seed: the seed stays inside the JWE the client decrypts. A client MUST refuse this completion and store nothing from it."
+    "notes": "With credential_response_encrypted true the server never relays credential_metadata, least of all auxiliary_data: it stays inside the JWE the client decrypts. A client MUST refuse this completion and store nothing from it."
   },
   {
     "id": "flow-vci-complete-encrypted-metadata-leaked-refused",
