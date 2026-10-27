@@ -861,6 +861,8 @@ Point-to-point messages within a session:
 }
 ```
 
+A responder that only orchestrates flows for its client, with no other participant in the session to deliver to (for example a wallet backend in a `tls` session with the wallet as the only participant), has no recipient for a `wmp.message.deliver`. When such a responder receives a `wmp.message.deliver` **request** (one that carries an `id`) it MUST answer `-31008` (Participant not found) and MUST NOT hand the message to its flow engine; it does not acknowledge it. It handles an inbound `wmp.message.ack` or `wmp.message.status` notification by logging it and counting it in a metric, not by routing it to the flow engine, and sends no response.
+
 ### 5.2 Group Messages
 
 When MLS is active, the message content is encrypted inside the JSON-RPC envelope. The JSON-RPC framing is always the outermost layer — it is never encrypted.
