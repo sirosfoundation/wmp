@@ -68,7 +68,7 @@
       "params": {
         "wmp": {
           "version": "0.1",
-          "session_id": "ses-basic-001",
+          "session_id": "ses-basic001",
           "sender": "x509:san:dns:alice.example.com"
         },
         "flow_type": "oid4vci",
@@ -243,7 +243,7 @@
       "params": {
         "wmp": {
           "version": "0.1",
-          "session_id": "ses-basic-001",
+          "session_id": "ses-basic001",
           "sender": "x509:san:dns:alice.example.com"
         },
         "flow_type": "no-such-flow",
@@ -275,7 +275,7 @@
       "params": {
         "wmp": {
           "version": "0.1",
-          "session_id": "ses-flows-001",
+          "session_id": "ses-flows001",
           "sender": "x509:san:dns:alice.example.com"
         },
         "flow_type": "sign",
@@ -293,6 +293,6 @@
         "message": "Invalid params"
       }
     },
-    "notes": "Session ses-flows-001 negotiated the flows and sign capabilities. Contrast with error-unknown-flow-type."
+    "notes": "Session ses-flows001 negotiated the flows and sign capabilities. Contrast with error-unknown-flow-type."
   }
 ]

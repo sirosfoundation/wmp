@@ -213,6 +213,18 @@ class FlowCompleteMatchResult(unittest.TestCase):
         self.bad({"satisfiable": True, "satisfiable_query_ids": ["pid", "pid"]})
         self.bad({"satisfiable": True, "selection_handle": "short"})
 
+    def test_match_result_schema_selected_by_flow_type(self):
+        """schema/methods/match-result.json applies to every result of a match flow,
+        including one that leaves out satisfiable."""
+        def e(r):
+            return errors("methods/match-result.json", r)
+        self.assertEqual(e({"satisfiable": True, "satisfiable_query_ids": ["pid"]}), [])
+        self.assertEqual(e({"satisfiable": False, "code": "no_match"}), [])
+        self.assertNotEqual(e({"code": "no_match", "credential_id": "cred-001"}), [])
+        self.assertNotEqual(e({"code": "no_match"}), [])
+        self.assertNotEqual(e({}), [])
+        self.assertNotEqual(e({"satisfiable": True, "claims": {"a": "b"}}), [])
+
 
 class FlowCompleteBlindIssuance(unittest.TestCase):
     """Engine-blind issuance (Section 3.1.5.1): the seed is never relayed."""
