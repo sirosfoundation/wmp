@@ -212,6 +212,10 @@ class FlowCompleteMatchResult(unittest.TestCase):
         self.bad({"satisfiable": True, "satisfiable_query_ids": [{"id": "pid"}]})
         self.bad({"satisfiable": True, "satisfiable_query_ids": ["pid", "pid"]})
         self.bad({"satisfiable": True, "selection_handle": "short"})
+        # 25 characters: an unpadded base64url string cannot have length 1 mod 4
+        self.bad({"satisfiable": True, "selection_handle": "A" * 25})
+        self.ok({"satisfiable": True, "selection_handle": "A" * 24})
+        self.ok({"satisfiable": True, "selection_handle": "A" * 22})
 
     def test_match_result_schema_selected_by_flow_type(self):
         """schema/methods/match-result.json applies to every result of a match flow,
@@ -223,6 +227,8 @@ class FlowCompleteMatchResult(unittest.TestCase):
         self.assertNotEqual(e({"code": "no_match", "credential_id": "cred-001"}), [])
         self.assertNotEqual(e({"code": "no_match"}), [])
         self.assertNotEqual(e({}), [])
+        self.assertNotEqual(e({"satisfiable": True, "selection_handle": "A" * 25}), [])
+        self.assertEqual(e({"satisfiable": True, "selection_handle": "A" * 23}), [])
         self.assertNotEqual(e({"satisfiable": True, "claims": {"a": "b"}}), [])
 
 
