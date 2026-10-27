@@ -68,7 +68,7 @@
       "params": {
         "wmp": {
           "version": "0.1",
-          "session_id": "ses-basic-001",
+          "session_id": "ses-basic001",
           "sender": "x509:san:dns:alice.example.com"
         },
         "flow_type": "oid4vci",
@@ -82,7 +82,7 @@
       "error": {
         "code": -31005,
         "message": "Capability not supported",
-        "data": { "capability": "oid4vci" }
+        "data": { "unsupported": "oid4vci" }
       }
     },
     "notes": "Session was created without oid4vci capability."
@@ -107,5 +107,192 @@
         "message": "Method not found"
       }
     }
+  },
+  {
+    "id": "error-version-different-major",
+    "description": "The initiator offers a MAJOR version the responder does not support.",
+    "conformance_level": "basic",
+    "setup": {
+      "supported_versions": [
+        "0.1"
+      ]
+    },
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "ver-err-001",
+      "method": "wmp.session.create",
+      "params": {
+        "wmp": {
+          "version": "1.0",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "capabilities_offered": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "ver-err-001",
+      "error": {
+        "code": -31013,
+        "message": "Version not supported",
+        "data": {
+          "supported_versions": [
+            "0.1"
+          ]
+        }
+      }
+    },
+    "notes": "data.supported_versions lists every version the responder supports."
+  },
+  {
+    "id": "error-version-below-responder-minimum",
+    "description": "The initiator offers a version lower than any the responder supports.",
+    "conformance_level": "basic",
+    "setup": {
+      "supported_versions": [
+        "0.2"
+      ]
+    },
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "ver-err-002",
+      "method": "wmp.session.create",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "capabilities_offered": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "ver-err-002",
+      "error": {
+        "code": -31013,
+        "message": "Version not supported",
+        "data": {
+          "supported_versions": [
+            "0.2"
+          ]
+        }
+      }
+    },
+    "notes": "Same MAJOR, but the responder never selects a version higher than the one offered."
+  },
+  {
+    "id": "error-version-malformed",
+    "description": "A wmp.version that is not MAJOR.MINOR is invalid params.",
+    "conformance_level": "basic",
+    "setup": {
+      "supported_versions": [
+        "0.1"
+      ]
+    },
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "ver-err-003",
+      "method": "wmp.session.create",
+      "params": {
+        "wmp": {
+          "version": "v0.1",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "capabilities_offered": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "ver-err-003",
+      "error": {
+        "code": -32602,
+        "message": "Invalid params"
+      }
+    },
+    "notes": "Also for \"0.1.0\", \"0.01\", \"\" and an absent version member (not expressible here: the structural harnesses require wmp.version to be a string)."
+  },
+  {
+    "id": "error-unknown-flow-type",
+    "description": "A flow type no implemented profile defines is an unsupported capability.",
+    "conformance_level": "basic",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "flow-err-002",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-basic001",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "flow_type": "no-such-flow",
+        "flow_id": "flow-err-002",
+        "params": {}
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "flow-err-002",
+      "error": {
+        "code": -31005,
+        "message": "Capability not supported",
+        "data": {
+          "unsupported": "no-such-flow"
+        }
+      }
+    },
+    "notes": "Core Section 3.8.1. Not -32602 and not -31006."
+  },
+  {
+    "id": "error-known-flow-type-invalid-params",
+    "description": "A known flow type with invalid params stays -32602.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "flow-err-003",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-flows001",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "flow_type": "sign",
+        "flow_id": "flow-err-003",
+        "params": {
+          "action": "no-such-action"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "flow-err-003",
+      "error": {
+        "code": -32602,
+        "message": "Invalid params"
+      }
+    },
+    "notes": "Session ses-flows001 negotiated the flows and sign capabilities. Contrast with error-unknown-flow-type."
   }
 ]

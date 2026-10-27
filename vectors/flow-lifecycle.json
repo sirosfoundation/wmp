@@ -822,5 +822,164 @@
     "expected_response": null,
     "must_refuse": true,
     "notes": "A value that is not a compact JWE is refused: the flow fails and the verifier is answered access_denied with no detail."
+  },
+  {
+    "id": "flow-oid4vp-transaction-data-unsupported",
+    "description": "A wallet that did not offer transaction_data: the OID4VP flow ends -31005 with unsupported and the additive redirect_uri.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-002",
+        "code": -31005,
+        "message": "Capability not supported",
+        "data": {
+          "unsupported": "transaction_data",
+          "redirect_uri": "https://verifier.example.com/cb?error=invalid_transaction_data&state=st-2"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "Core Section 3.8.1, openid4x Section 2.3. unsupported is always present; redirect_uri only when the verifier's response mode produced a redirect. A wallet that only knows unsupported ignores redirect_uri. The orchestrator reported invalid_transaction_data to the verifier and did not drop the transaction data."
+  },
+  {
+    "id": "flow-oid4vp-transaction-data-unsupported-no-redirect",
+    "description": "As above, when the verifier returned no redirect: data is exactly {\"unsupported\": \"transaction_data\"}.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-003",
+        "code": -31005,
+        "message": "Capability not supported",
+        "data": {
+          "unsupported": "transaction_data"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "This vector assumes a verifier response that carried no redirect (a direct_post whose verifier answered without redirect_uri). When the verifier does return a redirect, in any response mode, redirect_uri is added as in flow-oid4vp-transaction-data-unsupported; omission depends on whether the verifier actually returned one, not on the response mode."
+  },
+  {
+    "id": "flow-sign-rejected",
+    "description": "A wallet declines the sign sub-flow: -31006 with data.reason rejected.",
+    "conformance_level": "flows",
+    "input": [
+      {
+        "step": "orchestrator starts the sign sub-flow",
+        "message": {
+          "jsonrpc": "2.0",
+          "id": "sign-rej-001",
+          "method": "wmp.flow.start",
+          "params": {
+            "wmp": {
+              "version": "0.1",
+              "session_id": "ses-a1b2c3d4",
+              "sender": "x509:san:dns:orchestrator.example.com"
+            },
+            "flow_type": "sign",
+            "flow_id": "flow-vp-001-sign",
+            "params": {
+              "parent_flow_id": "flow-vp-001",
+              "action": "sign_presentation",
+              "nonce": "n-1",
+              "audience": "https://verifier.example.com"
+            }
+          }
+        }
+      },
+      {
+        "step": "wallet declines",
+        "message": {
+          "jsonrpc": "2.0",
+          "method": "wmp.flow.error",
+          "params": {
+            "wmp": {
+              "version": "0.1",
+              "session_id": "ses-a1b2c3d4"
+            },
+            "flow_id": "flow-vp-001-sign",
+            "code": -31006,
+            "message": "declined",
+            "data": {
+              "reason": "rejected"
+            }
+          }
+        }
+      },
+      {
+        "step": "orchestrator ends the parent flow at once, without waiting for the sub-flow timeout",
+        "message": {
+          "jsonrpc": "2.0",
+          "method": "wmp.flow.error",
+          "params": {
+            "wmp": {
+              "version": "0.1",
+              "session_id": "ses-a1b2c3d4"
+            },
+            "flow_id": "flow-vp-001",
+            "code": -31006,
+            "message": "User declined the request",
+            "data": {
+              "redirect_uri": "https://verifier.example.com/cb?error=access_denied&state=st-1"
+            }
+          }
+        }
+      }
+    ],
+    "notes": "openid4x Section 3.2.6. The verifier is told access_denied with the request's state and no error_description; message and other data of the sub-flow error are not forwarded."
+  },
+  {
+    "id": "flow-progress-replayed-after-resume",
+    "description": "After wmp.session.resume the responder re-sends the latest flow.progress of each active flow.",
+    "conformance_level": "flows",
+    "input": [
+      {
+        "step": "client resumes the session",
+        "message": {
+          "jsonrpc": "2.0",
+          "id": "resume-001",
+          "method": "wmp.session.resume",
+          "params": {
+            "wmp": {
+              "version": "0.1",
+              "sender": "x509:san:dns:alice.example.com"
+            },
+            "session_id": "ses-a1b2c3d4",
+            "resumption_token": "rt-abc",
+            "last_received_id": "41"
+          }
+        }
+      },
+      {
+        "step": "responder re-sends the latest progress of the active flow",
+        "message": {
+          "jsonrpc": "2.0",
+          "method": "wmp.flow.progress",
+          "params": {
+            "wmp": {
+              "version": "0.1",
+              "session_id": "ses-a1b2c3d4"
+            },
+            "flow_id": "flow-7890",
+            "step": "awaiting_review",
+            "payload": {
+              "reviewer": "x509:san:dns:bob.example.com"
+            }
+          }
+        }
+      }
+    ],
+    "notes": "Core Sections 4.5.3 and 6.2.1: the latest progress per active (non-terminal) flow only, not the whole history. A flow that already ended is not re-announced by this rule. Over the HTTPS binding last_received_id is an event ID (Transport Section 4.5)."
   }
 ]

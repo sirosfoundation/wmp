@@ -115,7 +115,24 @@ Version is negotiated during session creation:
 {"wmp": {"version": "0.1", "session_id": "ses-..."}, ...}
 ```
 
-If the responder does not support any version compatible with the initiator (different MAJOR version), it MUST reject the session with a new error:
+**Version strings and comparison.** A version is `MAJOR.MINOR`: two non-negative decimal integers separated by one dot, with no sign, no leading zeros (other than `0` itself) and no further components. `0.10` is a later version than `0.9`; versions are compared as the pair of integers (MAJOR first), never as strings. A `wmp.version` that is absent, empty or not of this form MUST be rejected with `-32602` (Invalid params).
+
+**Selection rule.** The responder selects the highest version it supports that has the **same MAJOR** as the initiator's version and a MINOR **not greater** than the initiator's. A responder never selects a version higher than the initiator offered, and never selects a version of a different MAJOR. If there is none the responder MUST reject the session with `-31013`; this includes a responder whose lowest version of the initiator's MAJOR is higher than the initiator's (it supports `0.2` and later only, the initiator offers `0.1`).
+
+| Initiator offers | Responder supports | Result |
+|------------------|--------------------|--------|
+| `0.2` | `0.1`, `0.2` | `0.2` |
+| `0.2` | `0.1` | `0.1` |
+| `0.10` | `0.9` | `0.9` |
+| `0.2` | `0.1`, `0.3` | `0.1` |
+| `0.1` | `0.2` | `-31013` |
+| `1.0` | `0.1`, `0.2` | `-31013` |
+
+The `-31013` error `data` SHOULD be `{"supported_versions": [...]}`, an array of every version string the responder supports.
+
+**Initiator.** The initiator MUST accept a result whose `wmp.version` is a version it supports, has the MAJOR it offered and is not greater than the version it offered. It MUST treat any other result as a failed negotiation (as if the responder had answered `-31013`), MUST NOT send further messages in the session and SHOULD close it.
+
+If the responder does not support any version compatible with the initiator (different MAJOR version, or none low enough as above), it MUST reject the session with a new error:
 
 | Code | Message | Description |
 |------|---------|-------------|
@@ -357,6 +374,34 @@ WMP extends the standard JSON-RPC 2.0 error code space:
 | -31017 | Assurance level unsupported | Requested recipient assurance level cannot be met |
 | -31018 | Policy unsupported | One or more applicable policies cannot be enforced |
 | -31019 | Plaintext hash mismatch | Decrypted plaintext does not match the sender's `plaintext_hash` commitment (§5.2.1) |
+
+#### 3.8.1 `-31005` Capability not supported
+
+`-31005` is the one error for "the other side asked for something this session does not offer". Its `data`, when present, is an object whose `unsupported` member is a string naming what is unsupported: a capability name (`transaction_data`), a protocol feature (`consignment_mode`), or a flow type (the `flow_type` value as sent). Receivers key on `unsupported` and MUST ignore other `data` members they do not understand; a sender MAY add members that help the receiver recover (Section 9.5).
+
+`-31005` applies, as the error response to the request, in each of these cases:
+
+1. A request needs a capability that was not negotiated for the session (Section 10.3).
+2. A `wmp.flow.start` names a `flow_type` that the receiver does not implement or whose capability (Section 6.5, item 2) was not negotiated. An unknown flow type is an unsupported capability: the receiver MUST NOT answer `-32602` (Invalid params) or `-31006` (Flow error), and the `data` is `{"unsupported": "<flow_type>"}`. A known flow type with invalid `params` is still `-32602`.
+3. A relay cannot meet a requirement of the message it was asked to forward (Sections 3.4, 3.5, 7.5.1.1).
+
+A flow that has already started and then cannot continue for lack of a capability ends with `wmp.flow.error` carrying `code` `-31005` and the same `data` (for example the OID4VP `transaction_data` case of [wmp-openid4x.md](wmp-openid4x.md) Section 2.3). Such a profile MAY define additional `data` members for that failure; they are extension members (Section 9.5) next to `unsupported`, not a replacement for it. In particular, an OID4VP flow that ends with `-31005` for `transaction_data` and whose verifier response mode produced a redirect carries `data` `{"unsupported": "transaction_data", "redirect_uri": "<url>"}`, so that a wallet that only looks at `unsupported` and a wallet that follows the redirect are both served.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "flow-err-002",
+  "error": {
+    "code": -31005,
+    "message": "Capability not supported",
+    "data": {"unsupported": "no-such-flow"}
+  }
+}
+```
+
+#### 3.8.2 `-31019` Plaintext hash mismatch
+
+`-31019` is raised by a recipient that decrypted a message carrying `plaintext_hash` and found that the hash of the decrypted plaintext content object does not equal `plaintext_hash.value` (Section 5.2.1). When the `wmp.message.deliver` carried an `id`, it is the error response to that request; a deliver sent as a notification has no response, and the recipient only withholds the acknowledgment. In both cases the message MUST NOT be acknowledged. It is used for that mismatch only: `plaintext_hash` on a message that is not encrypted, or naming a hash algorithm the recipient does not support, is `-32602`. `data` is OPTIONAL; if present it MUST NOT contain the recomputed hash or any part of the plaintext, since the error may be seen by parties that cannot decrypt the message.
 
 ## 4. Session Lifecycle
 
@@ -1462,7 +1507,7 @@ Resolution failures use standard WMP error responses:
   "error": {
     "code": -31005,
     "message": "Resolution type not supported",
-    "data": {"type": "smp"}
+    "data": {"unsupported": "smp", "type": "smp"}
   }
 }
 ```
@@ -1720,6 +1765,8 @@ Profiles extend WMP with domain-specific flow types. A profile document MUST def
 4. The set of `step` identifiers used in `wmp.flow.progress`.
 5. The set of `action` identifiers used in `wmp.flow.action`.
 6. The `result` schema for `wmp.flow.complete`.
+
+A `wmp.flow.start` for a flow type that no negotiated capability provides, including one that no implemented profile defines, is answered with `-31005` as Section 3.8.1 describes.
 
 ## 7. Participant Addressing
 
@@ -2559,7 +2606,7 @@ All WMP implementations MUST support:
 
 ### 10.3 Capability Negotiation Requirements
 
-All implementations MUST reject requests for capabilities that were not negotiated during session creation or via `wmp.capability.update` with error `-31005` (Capability not supported).
+All implementations MUST reject requests for capabilities that were not negotiated during session creation or via `wmp.capability.update` with error `-31005` (Capability not supported). A `wmp.flow.start` whose `flow_type` the implementation does not know is such a request (Section 3.8.1, item 2).
 
 All implementations MUST reject messages that violate the negotiated security mode (e.g., unencrypted messages for capabilities listed in `encrypted_capabilities`) with error `-31003` (Encryption required).
 

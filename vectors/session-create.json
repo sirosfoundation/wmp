@@ -132,5 +132,153 @@
       }
     },
     "notes": "relay messages MUST be MLS-encrypted; messaging uses TLS only."
+  },
+  {
+    "id": "session-create-version-negotiated-down",
+    "description": "The initiator offers 0.2, the responder supports only 0.1: the result carries 0.1.",
+    "conformance_level": "basic",
+    "setup": {
+      "supported_versions": [
+        "0.1"
+      ]
+    },
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "ver-001",
+      "method": "wmp.session.create",
+      "params": {
+        "wmp": {
+          "version": "0.2",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "capabilities_offered": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        }
+      }
+    },
+    "expected_response": {
+      "jsonrpc": "2.0",
+      "id": "ver-001",
+      "result": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-*"
+        },
+        "capabilities": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        },
+        "challenge": "ch-*"
+      }
+    },
+    "notes": "Core Section 2.2.2. The responder selects the highest version it supports that is not greater than the offered one (same MAJOR). The initiator accepts it: 0.1 is supported, has the offered MAJOR and is not greater than 0.2."
+  },
+  {
+    "id": "session-create-version-numeric-comparison",
+    "description": "Versions compare as integer pairs: 0.10 is later than 0.9.",
+    "conformance_level": "basic",
+    "setup": {
+      "supported_versions": [
+        "0.9"
+      ]
+    },
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "ver-002",
+      "method": "wmp.session.create",
+      "params": {
+        "wmp": {
+          "version": "0.10",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "capabilities_offered": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        }
+      }
+    },
+    "expected_response": {
+      "jsonrpc": "2.0",
+      "id": "ver-002",
+      "result": {
+        "wmp": {
+          "version": "0.9",
+          "session_id": "ses-*"
+        },
+        "capabilities": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        },
+        "challenge": "ch-*"
+      }
+    },
+    "notes": "Compared as strings, \"0.10\" sorts before \"0.9\" and a lexicographic implementation would refuse this session with -31013. Compared as integer pairs 0.9 is not greater than 0.10, so it is selected."
+  },
+  {
+    "id": "session-create-version-highest-not-above-offer",
+    "description": "The responder supports 0.1 and 0.3; the initiator offers 0.2: 0.1 is selected, never 0.3.",
+    "conformance_level": "basic",
+    "setup": {
+      "supported_versions": [
+        "0.1",
+        "0.3"
+      ]
+    },
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "ver-003",
+      "method": "wmp.session.create",
+      "params": {
+        "wmp": {
+          "version": "0.2",
+          "sender": "x509:san:dns:alice.example.com"
+        },
+        "capabilities_offered": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        }
+      }
+    },
+    "expected_response": {
+      "jsonrpc": "2.0",
+      "id": "ver-003",
+      "result": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-*"
+        },
+        "capabilities": {
+          "messaging": {
+            "max_size": 65536
+          }
+        },
+        "security": {
+          "mode": "tls"
+        },
+        "challenge": "ch-*"
+      }
+    },
+    "notes": "A responder never selects a version higher than the initiator offered."
   }
 ]

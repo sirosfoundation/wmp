@@ -14,8 +14,9 @@
     "kind": { "type": "string", "enum": ["rpc", "interop", "transport-http"], "description": "How the vector is executed. Absent means the kind of the file it is in, as listed in manifest.json." },
     "setup": {
       "type": "object",
-      "description": "Server configuration for a transport-http vector (see README.md).",
+      "description": "Configuration of the responder under test. event_buffer and principals are for transport-http vectors (see README.md).",
       "properties": {
+        "supported_versions": { "type": "array", "items": { "type": "string" }, "description": "Protocol versions the responder supports (version negotiation vectors)." },
         "event_buffer": { "type": "integer", "minimum": 1, "description": "Per-session event buffer size, in events." },
         "principals": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Principal name to the Authorization header value that authenticates it." }
       }
