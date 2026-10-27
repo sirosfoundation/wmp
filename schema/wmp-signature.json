@@ -4,5 +4,5 @@
   "title": "WMP Signature",
   "description": "Detached JWS (RFC 7515 Appendix F) for non-repudiation. Format: compact JWS with detached payload (<header>..<signature>). The JWS protected header carries alg, kid, b64:false, crit:[\"b64\"], and optionally x5c.",
   "type": "string",
-  "pattern": "^[A-Za-z0-9_-]+\\.\\.[A-Za-z0-9_-]+(?![\\s\\S])"
+  "pattern": "^[A-Za-z0-9_-]+\\.\\.[A-Za-z0-9_-]+$"
 }
