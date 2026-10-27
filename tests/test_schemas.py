@@ -181,6 +181,39 @@ class FlowCompleteVectors(unittest.TestCase):
         self.assertGreaterEqual(refused, 4)
 
 
+class FlowCompleteMatchResult(unittest.TestCase):
+    """openid4x 3.3: a match result is a closed set."""
+
+    def msg(self, result):
+        return {"jsonrpc": "2.0", "method": "wmp.flow.complete",
+                "params": {"wmp": WMP, "flow_id": "f1-match", "result": result}}
+
+    def ok(self, result):
+        self.assertEqual(errors("methods/flow-complete.json", self.msg(result)), [])
+
+    def bad(self, result):
+        self.assertNotEqual(errors("methods/flow-complete.json", self.msg(result)), [], result)
+
+    def test_valid(self):
+        self.ok({"satisfiable": True, "satisfiable_query_ids": ["pid"],
+                 "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"})
+        self.ok({"satisfiable": False, "code": "no_match"})
+
+    def test_closed_set(self):
+        for extra in ({"claims": {"a": "b"}}, {"vct": "x"}, {"credential_id": "c"},
+                      {"no_match_reason": "text"}, {"disclosures": ["x"]},
+                      {"credentials": [{"format": "dc+sd-jwt"}]}, {"wallet_version": "1"}):
+            self.bad(dict({"satisfiable": True}, **extra))
+
+    def test_code_rules(self):
+        self.bad({"satisfiable": True, "code": "error"})
+        self.bad({"satisfiable": False})
+        self.bad({"satisfiable": False, "code": "no PID found"})
+        self.bad({"satisfiable": True, "satisfiable_query_ids": [{"id": "pid"}]})
+        self.bad({"satisfiable": True, "satisfiable_query_ids": ["pid", "pid"]})
+        self.bad({"satisfiable": True, "selection_handle": "short"})
+
+
 class FlowCompleteBlindIssuance(unittest.TestCase):
     """Engine-blind issuance (Section 3.1.5.1): the seed is never relayed."""
 
