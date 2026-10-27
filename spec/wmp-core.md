@@ -2346,6 +2346,8 @@ When a transport connection drops:
 4. The server re-authenticates the participant during resumption (the `resumption_token` serves as proof of prior authentication).
 5. After successful resumption, the session is bound to the new transport connection and queued messages are delivered. The server sends `wmp.message.status` notifications with status `delivered` to senders for any queued messages that were successfully delivered on reconnect.
 
+**HTTPS exception.** An HTTPS session is bound to the credential, not to a connection (§8.7.1). The loss of an event stream (or of any single HTTP request) therefore does not suspend it, and a client reattaches by opening a new event stream with the same credential, resuming the stream from its cursor as Transport Section 4.3.3 describes; `wmp.session.resume` is not needed for that. Steps 1 to 5 apply to an HTTPS session only when the server has actually suspended it (for example its credential expired, or the server restarted and lost the stream state); the client then learns of it by a `410` (Transport Section 4.3.4) or `-31000`/`-31001` and recovers with `wmp.session.resume`.
+
 A `session_id` alone is NEVER sufficient to send messages — it is not a secret and MUST NOT be treated as one. The binding is to the authenticated identity, not the session ID string.
 
 #### 8.7.3 Relay Mode Binding
