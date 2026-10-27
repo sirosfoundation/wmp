@@ -175,7 +175,7 @@ Two terms are used below: the **event buffer** is the bounded per-session record
 #### 4.3.1 Session IDs and Access Control
 
 - The session ID is assigned by the server. It is returned in `wmp.session_id` of the `wmp.session.create` result (Section 4.1 of [wmp-core.md](wmp-core.md)). A `wmp.session.create` request MUST NOT carry a session ID, in the `wmp` metadata object or in the `Wmp-Session-Id` header; a server MUST refuse one that does with `-32602` (Invalid params) and MUST NOT create a session under a client-chosen ID. Session IDs MUST carry at least 128 bits of entropy from a cryptographically secure source.
-- Every POST and every GET of this binding MUST be authenticated (Section 4.4 of [wmp-core.md](wmp-core.md)), and the server MUST bind the session to the authenticated principal that created it. A request with no valid credentials MUST be answered with HTTP `401`.
+- Every POST and every GET of this binding MUST be authenticated (Section 4.4 of [wmp-core.md](wmp-core.md)), and the server MUST bind the session to the authenticated principal that created it. A renewed or replacement credential for that same principal is accepted (Section 8.7.1 of [wmp-core.md](wmp-core.md)); it is the principal that is bound, not the credential string. A request with no valid credentials MUST be answered with HTTP `401`.
 - A request that names a session that does not exist and a request that names a session owned by a different principal MUST be indistinguishable to the caller: same HTTP status (`404` for a GET of the event stream), same body, and for a POST the same JSON-RPC error `-31000` (Session not found). A server MUST NOT reveal that a session ID exists to a principal that does not own it.
 
 #### 4.3.2 Event IDs
