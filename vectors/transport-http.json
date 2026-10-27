@@ -1718,7 +1718,7 @@
   },
   {
     "id": "transport-sse-replay-oldest-retained-boundary",
-    "description": "A cursor whose next event is still in the buffer is not a gap.",
+    "description": "A cursor that is the eviction watermark (its successor is still held) is not a gap.",
     "conformance_level": "transport",
     "kind": "transport-http",
     "setup": {
@@ -2030,11 +2030,11 @@
         }
       }
     ],
-    "notes": "Buffer of three events. The boundary is the event after the cursor, not the cursor itself."
+    "notes": "Buffer of three events; e1 and e2 are evicted, so the watermark is e2. The cursor itself being evicted is not a gap: its successor e3 is held."
   },
   {
     "id": "transport-sse-gap-410-then-resume",
-    "description": "A cursor whose next event was evicted is a gap: 410, then the client resumes.",
+    "description": "A cursor older than the eviction watermark is a gap: 410, then the client opens a cursorless stream and resumes; the active flow's latest progress arrives on that stream.",
     "conformance_level": "transport",
     "kind": "transport-http",
     "setup": {
@@ -2297,7 +2297,26 @@
         }
       },
       {
-        "step": "the client discards its cursor and resumes the session",
+        "step": "the client discards its cursor and opens a stream with no cursor: no replay, no 410",
+        "conn": "A3",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "then resumes the session; flow-1 is active, so its latest progress is re-sent on the open stream",
         "request": {
           "method": "POST",
           "path": "/wmp",
@@ -2335,10 +2354,309 @@
               }
             }
           }
+        },
+        "deliver": {
+          "A3": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "any": true
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-5"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "notes": "{{rt}} is the resumption_token of the create result. The server MUST NOT send any part of the replay with the 410. Opening the stream before the resume is what lets the re-sent notifications reach the client."
+  },
+  {
+    "id": "transport-resume-resends-terminal-notification",
+    "description": "A terminal notification evicted with the gap is re-sent on resume.",
+    "conformance_level": "transport",
+    "kind": "transport-http",
+    "setup": {
+      "event_buffer": 3,
+      "principals": {
+        "alice": "Bearer alice",
+        "bob": "Bearer bob"
+      }
+    },
+    "input": [
+      {
+        "step": "alice creates a session",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "method": "wmp.session.create",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "capabilities_offered": {
+                "flows": {
+                  "max_concurrent": 5
+                }
+              },
+              "security": {
+                "mode": "tls"
+              }
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "c1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": {
+                  "capture": "sid"
+                }
+              },
+              "resumption_token": {
+                "capture": "rt"
+              }
+            }
+          }
         }
       },
       {
-        "step": "then opens a stream with no cursor: no replay, no 410",
+        "step": "alice opens a stream",
+        "conn": "A",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream"
+          }
+        },
+        "expect": {
+          "status": 200,
+          "events": []
+        }
+      },
+      {
+        "step": "flow-1 ends with a flow.error; flow-2 starts; three more events follow. The buffer keeps the newest three",
+        "emit": [
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.error",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-1",
+              "code": -31006,
+              "message": "declined",
+              "data": {
+                "reason": "rejected"
+              }
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-2",
+              "step": "step-1"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-2",
+              "step": "step-2"
+            }
+          },
+          {
+            "jsonrpc": "2.0",
+            "method": "wmp.flow.progress",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "flow_id": "flow-2",
+              "step": "step-3"
+            }
+          }
+        ],
+        "deliver": {
+          "A": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e1"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "step": "step-1"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e2"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.error",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "code": -31006,
+                    "message": "declined",
+                    "data": {
+                      "reason": "rejected"
+                    }
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e3"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-2",
+                    "step": "step-1"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e4"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-2",
+                    "step": "step-2"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "capture": "e5"
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-2",
+                    "step": "step-3"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "step": "alice's connection drops",
+        "close": "A"
+      },
+      {
+        "step": "alice reconnects with Last-Event-ID = e1: gap",
+        "conn": "A2",
+        "request": {
+          "method": "GET",
+          "path": "/wmp/events",
+          "query": {
+            "session_id": "{{sid}}"
+          },
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Accept": "text/event-stream",
+            "Last-Event-ID": "{{e1}}"
+          }
+        },
+        "expect": {
+          "status": 410,
+          "stream": false
+        }
+      },
+      {
+        "step": "cursorless stream",
         "conn": "A3",
         "request": {
           "method": "GET",
@@ -2355,9 +2673,96 @@
           "status": 200,
           "events": []
         }
+      },
+      {
+        "step": "resume: the latest progress of the active flow-2, then the terminal notification of flow-1, which is no longer in the buffer",
+        "request": {
+          "method": "POST",
+          "path": "/wmp",
+          "headers": {
+            "Authorization": "Bearer alice",
+            "Wmp-Session-Id": "{{sid}}"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "r1",
+            "method": "wmp.session.resume",
+            "params": {
+              "wmp": {
+                "version": "0.1",
+                "sender": "x509:san:dns:alice.example.com"
+              },
+              "session_id": "{{sid}}",
+              "resumption_token": "{{rt}}"
+            }
+          }
+        },
+        "expect": {
+          "status": 200,
+          "body": {
+            "jsonrpc": "2.0",
+            "id": "r1",
+            "result": {
+              "wmp": {
+                "version": "0.1",
+                "session_id": "{{sid}}"
+              },
+              "resumed": true,
+              "resumption_token": {
+                "capture": "rt2"
+              }
+            }
+          }
+        },
+        "deliver": {
+          "A3": {
+            "events": [
+              {
+                "event": "wmp",
+                "id": {
+                  "any": true
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.progress",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-2",
+                    "step": "step-3"
+                  }
+                }
+              },
+              {
+                "event": "wmp",
+                "id": {
+                  "any": true
+                },
+                "data": {
+                  "jsonrpc": "2.0",
+                  "method": "wmp.flow.error",
+                  "params": {
+                    "wmp": {
+                      "version": "0.1",
+                      "session_id": "{{sid}}"
+                    },
+                    "flow_id": "flow-1",
+                    "code": -31006,
+                    "message": "declined",
+                    "data": {
+                      "reason": "rejected"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
       }
     ],
-    "notes": "{{rt}} is the resumption_token of the create result. The server MUST NOT send any part of the replay with the 410."
+    "notes": "Core Section 4.5.3, Transport Section 4.3.4. The server keeps terminal notifications for the session lifetime outside the buffer (redacted form). A client that already processed one ignores the repeat."
   },
   {
     "id": "transport-sse-gap-unknown-cursor",

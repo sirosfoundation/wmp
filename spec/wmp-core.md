@@ -832,6 +832,7 @@ On successful resumption:
 - Active flows resume from their last state (no automatic restart). The responder MUST re-send the latest `wmp.flow.progress` for each active flow as part of message replay (§6.2.1).
 - The MLS epoch is preserved — the client continues with its current group state
 - The server delivers any queued messages since `last_received_id`
+- The responder also re-sends the terminal notification (`wmp.flow.complete`, `wmp.flow.error`, cancellation) of every flow of the session that has ended, after the progress notifications; a participant that already processed one ignores the repeat. See Transport Section 4.3.4 for why: a terminal notification may have been lost with an evicted event.
 
 #### 4.5.4 Resumption Failure
 
@@ -1506,7 +1507,7 @@ Resolution failures use standard WMP error responses:
   "error": {
     "code": -31005,
     "message": "Resolution type not supported",
-    "data": {"type": "smp"}
+    "data": {"unsupported": "smp", "type": "smp"}
   }
 }
 ```
