@@ -170,6 +170,7 @@
         "code": -31005,
         "message": "Resolution type not supported",
         "data": {
+          "unsupported": "vctm",
           "type": "vctm"
         }
       }
@@ -181,6 +182,7 @@
         "code": -31005,
         "message": "Resolution type not supported",
         "data": {
+          "unsupported": "vctm",
           "type": "vctm"
         }
       }
