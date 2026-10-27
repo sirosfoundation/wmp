@@ -2334,7 +2334,7 @@ When a session is created, the server binds it to the authenticated identity of 
 | Transport | Binding mechanism |
 |-----------|-------------------|
 | WebSocket | The session is bound to the WebSocket connection. Only messages from the same connection (or a successfully resumed connection via §4.5) are accepted. |
-| HTTPS | The session is bound to the bearer token or mTLS certificate. Each HTTP request MUST present the same credential. |
+| HTTPS | The session is bound to the authenticated principal (the identity that the bearer token or mTLS certificate authenticates), not to one credential string. Each HTTP request MUST present a valid credential that authenticates that same principal. A renewed or replacement credential for the same principal (a refreshed bearer token, a reissued certificate) is accepted without a rebind; a credential for a different principal is refused as for an unknown session. |
 | Native messaging | The session is bound to the process identity (extension ID, socket peer credentials). |
 
 **Invariant:** A message on session `S` is accepted only if it arrives on a transport connection authenticated as the sender identity recorded for that session.
