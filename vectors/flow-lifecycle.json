@@ -1072,5 +1072,699 @@
     },
     "expected_response": null,
     "notes": "code is one of no_match, insufficient, error; required when satisfiable is false, absent otherwise. No free-text reason."
+  },
+  {
+    "id": "flow-select-credentials-consent",
+    "description": "select_credentials: the user consents; one selection names the verifier's query id and the match handle.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-001",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          ]
+        }
+      }
+    },
+    "notes": "openid4x Section 3.2.3.1. The params are a closed set: consent and selections of {query_id, selection_handle}. The orchestrator learns neither the credential nor the claims; the wallet bounds disclosure by the verifier's query."
+  },
+  {
+    "id": "flow-select-credentials-decline",
+    "description": "select_credentials: the user declines; consent false and no selections.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-002",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": false
+        }
+      }
+    },
+    "notes": "selections is absent or empty when consent is false. The orchestrator ends the flow as for a declined user (Section 3.2.6) and starts no sign_presentation sub-flow."
+  },
+  {
+    "id": "flow-select-credentials-refused-credential-id",
+    "description": "Negative: a selection carries credential_id (the old shape).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-003",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ",
+              "credential_id": "cred-001"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.3.1: which credential the user chose never reaches the orchestrator. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-old-shape",
+    "description": "Negative: the pre-redesign shape, credential_id plus disclosed_claims in a selection and no query_id or handle.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-004",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "credential_id": "cred-001",
+              "disclosed_claims": [
+                "given_name",
+                "family_name",
+                "age_over_18"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Breaking change from earlier drafts: senders of the old shape are refused. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-disclosed-claims",
+    "description": "Negative: a selection carries disclosed_claims.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-005",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ",
+              "disclosed_claims": [
+                "given_name"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Claim names do not reach the orchestrator. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-vct",
+    "description": "Negative: a selection carries vct.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-006",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ",
+              "vct": "urn:eudi:pid:1"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "No credential type information in a selection. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-format",
+    "description": "Negative: a selection carries a credential format.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-007",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ",
+              "format": "dc+sd-jwt"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "No credential format in a selection. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-claim-values",
+    "description": "Negative: a selection carries claim values.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-008",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ",
+              "claims": {
+                "given_name": "Anna"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "No claim value at any depth. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-free-text",
+    "description": "Negative: a selection carries free text.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-009",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ",
+              "label": "my passport"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "No free text. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-unknown-selection-member",
+    "description": "Negative: an unknown member in a selection.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-010",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ",
+              "x_extension": 1
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Closed set: the ignore-unknown-members rule of Core Section 9.5 does not apply. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-unknown-params-member",
+    "description": "Negative: an unknown member in the params.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-011",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          ],
+          "credentials": [
+            {
+              "format": "dc+sd-jwt"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Closed set at the params level. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-missing-handle",
+    "description": "Negative: a selection without selection_handle.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-012",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Both members of a selection are required. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-missing-query-id",
+    "description": "Negative: a selection without query_id.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-013",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Both members of a selection are required. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-handle-too-short",
+    "description": "Negative: a handle shorter than 22 characters (128 bits).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-014",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "c2hvcnQ"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Handle format as in match-result.json. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-handle-padded",
+    "description": "Negative: a handle with base64 padding.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-015",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ=="
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Unpadded base64url only. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-handle-bad-alphabet",
+    "description": "Negative: a handle with a character outside the base64url alphabet.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-016",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQ+b25seQ"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Base64url alphabet only. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-handle-impossible-length",
+    "description": "Negative: a handle of 25 characters, impossible for unpadded base64url.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-017",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "AAAAAAAAAAAAAAAAAAAAAAAAA"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Length 1 mod 4 cannot occur. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-handle-not-string",
+    "description": "Negative: a handle that is not a string.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-018",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": 1234567890123456789012
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Type check. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-consent-not-boolean",
+    "description": "Negative: consent as a string.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-019",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": "true",
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "consent is a boolean. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-consent-missing",
+    "description": "Negative: consent absent.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-020",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "consent is required. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-consent-without-selections",
+    "description": "Negative: consent true with no selections.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-021",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": []
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "Consent to nothing is not consent. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-decline-with-selections",
+    "description": "Negative: consent false with selections.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-022",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": false,
+          "selections": [
+            {
+              "query_id": "pid",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "A declined request carries no selections. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-select-credentials-refused-query-id-form",
+    "description": "Negative: query_id that is not a DCQL id (whitespace and punctuation).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "vp-action-023",
+      "method": "wmp.flow.action",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4",
+          "sender": "did:web:alice.example.com"
+        },
+        "flow_id": "flow-vp-001",
+        "action": "select_credentials",
+        "params": {
+          "consent": true,
+          "selections": [
+            {
+              "query_id": "my pid!",
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          ]
+        }
+      }
+    },
+    "must_refuse": true,
+    "notes": "DCQL ids are alphanumeric, underscore or hyphen. That a well-formed query_id occurs in the verifier's query, and is not repeated, is checked by the orchestrator, not by the schema. A conforming orchestrator refuses it by ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params, reports access_denied to the verifier, and does not log, store or forward the offending members."
   }
 ]

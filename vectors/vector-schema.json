@@ -42,7 +42,7 @@
         "validate": { "type": "boolean", "description": "If false, the validator hook rejects the params." }
       }
     },
-    "must_refuse": { "type": "boolean", "description": "Negative vector: the input is a message a conforming receiver MUST refuse (a flow.complete a client rejects, or a sign result the server fails the flow for). The harness asserts that its conformance check reports a violation; every vector without this member must pass the check." },
+    "must_refuse": { "type": "boolean", "description": "Negative vector: the input is a message a conforming receiver MUST refuse (a flow.complete a client rejects, a wmp.flow.action an orchestrator refuses, or a sign result the server fails the flow for). The harness asserts that its conformance check reports a violation; every vector without this member must pass the check." },
     "notes": { "type": "string" }
   }
 }

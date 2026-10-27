@@ -359,10 +359,10 @@ The `oid4vp` flow is a *verifier-initiated* credential query: the verifier speci
 
 | Action | Description | Parameters |
 |--------|-------------|------------|
-| `select_credentials` | Select credentials and consent to disclosure | `selections`: credential selections with claim disclosure, `consent`: bool |
+| `select_credentials` | Record the user's decision to disclose, per credential query of the verifier's request (Section 3.2.3.1) | `consent`: bool, `selections`: `{query_id, selection_handle}` objects |
 | `cancel` | Cancel the flow | `reason`: string (optional) |
 
-**Credential selection with selective disclosure:**
+**Consent and selection:**
 
 ```json
 {
@@ -374,17 +374,45 @@ The `oid4vp` flow is a *verifier-initiated* credential query: the verifier speci
     "flow_id": "flow-vp-001",
     "action": "select_credentials",
     "params": {
+      "consent": true,
       "selections": [
         {
-          "credential_id": "cred-001",
-          "disclosed_claims": ["given_name", "family_name", "age_over_18"]
+          "query_id": "pid",
+          "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
         }
-      ],
-      "consent": true
+      ]
     }
   }
 }
 ```
+
+##### 3.2.3.1 `select_credentials` Parameters
+
+The `params` of a `select_credentials` action have exactly these members:
+
+| Member | Type | Required | Description |
+|--------|------|----------|-------------|
+| `consent` | boolean | REQUIRED | `true` if the user consents to the disclosure described by `selections`; `false` if the user declines |
+| `selections` | object[] | REQUIRED when `consent` is `true` (at least one element), otherwise absent or empty | One element per credential query the user consents to answer |
+
+Each element of `selections` has exactly these members, both REQUIRED:
+
+| Member | Type | Description |
+|--------|------|-------------|
+| `query_id` | string | The `id` of a credential query in the DCQL query of the verifier's own request. It MUST occur in that query, and at most once in `selections` |
+| `selection_handle` | string | The opaque per-flow handle of Section 3.3.2, unchanged. 22 or more base64url characters without padding (the pattern of `schema/methods/match-result.json`) |
+
+The orchestrator learns that the user consented, and for which of the verifier's own query ids. It does not learn which credential the user chose for a query, how many credentials could answer it, or which claims are disclosed.
+
+**The wallet bounds disclosure.** The wallet MUST disclose, for each selected `query_id`, no more than the query asks for: the claims named by that credential query, honouring its `claim_sets`, and the claims that the format requires to make the presentation verifiable. The user MAY narrow the disclosure in the wallet, never widen it. The orchestrator does not receive claim names in this action and therefore does not check them; the check of which claims a presentation may carry is the wallet's (Section 6.2).
+
+**Closed set.** `params` of `select_credentials` and each element of `selections` are closed: nothing but the members above may be present. In particular they MUST NOT carry, in any member or at any depth: a credential identifier, `credential_id`, `disclosed_claims` or any other claim name, path or value, a disclosure, a credential or any part of one, `vct`, `doctype`, a credential `format`, an issuer or trust-anchor identity, a count of credentials, or free text. An orchestrator MUST NOT ask a wallet for such data in this action. The rule of WMP Core Section 9.5 that unknown members are ignored does not apply here, because ignoring a member would still have received it.
+
+The orchestrator validates `params` against `schema/methods/select-credentials-params.json`, selected by the `action` of a flow it recorded as `oid4vp`, never by members of the params. It MUST refuse `params` that have a member other than those above, whose members have the wrong type, whose `selection_handle` is not of the form above or (when it has run a `match` flow for this request) differs from the handle of the `match` result, or whose `query_id` is not an `id` of the verifier's query or is repeated; and `selections` that is present and non-empty when `consent` is `false`, or empty or absent when it is `true`. It refuses by ending the `oid4vp` flow with a terminal `wmp.flow.error` on that flow, code `-32602` (Invalid params), whose `data` MUST NOT echo any member of the offending params, and reports `access_denied` to the verifier as in Section 3.2.6 (no `error_description`). A response to the `wmp.flow.action` request, if one is sent, is the JSON-RPC error `-32602` with no `data`. The orchestrator MUST NOT log, store or forward the offending members, and MUST NOT act on a part of refused params.
+
+When `consent` is `false` the orchestrator ends the flow as for a user who declined (Section 3.2.6); it does not start a `sign_presentation` sub-flow.
+
+**Breaking change.** Earlier drafts carried `selections` of `{credential_id, disclosed_claims}` with `consent`. That shape is a violation of this Section: a receiver that gets it refuses it as above.
 
 #### 3.2.4 Completion Result
 
@@ -408,7 +436,8 @@ To obtain the VP token the orchestrator starts a nested `sign` flow with `action
 | `verifier_jwk_thumbprint` | string | OPTIONAL | Thumbprint of the verifier's response-encryption key. See Section 7.2. |
 | `verifier_session_id` | string | OPTIONAL | The verifier's session identifier. See Section 7.3. |
 | `response_mode` | string | OPTIONAL | The `response_mode` of the verifier's request. Required for a request that carries `transaction_data` (EC TS12 puts it in the key binding JWT). |
-| `credentials_to_include` | object[] | OPTIONAL | Credentials already selected: `credential_id`, `credential_query_id`, `disclosed_claims` |
+| `credentials_to_include` | object[] | OPTIONAL | The credential queries the user consented to answer, each `{"credential_query_id": "<DCQL id>"}` and nothing else: no credential identifier and no claim names (Section 3.2.3.1). The wallet knows which credential and which claims. |
+| `selection_handle` | string | OPTIONAL | The handle of the `select_credentials` action that led here (Section 3.2.3.1), handed back unchanged; the wallet maps it to its own selection. The orchestrator MUST NOT interpret it. See Section 3.3.2. |
 | `transaction_data` | object[] | OPTIONAL | The request's transaction data, one entry per element of the verifier's array, in the verifier's order. Only present for a wallet that offered the `transaction_data` capability. |
 
 Each `transaction_data` entry has these members:
@@ -439,8 +468,9 @@ Each `transaction_data` entry has these members:
       "parent_flow_id": "flow-vp-001",
       "response_mode": "direct_post",
       "credentials_to_include": [
-        {"credential_id": "cred-001", "credential_query_id": "pay"}
+        {"credential_query_id": "pay"}
       ],
+      "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ",
       "transaction_data": [
         {
           "raw": "eyJ0eXBlIjoidXJuOmV1ZGk6c2NhOnBheW1lbnQ6MSIsImNyZWRlbnRpYWxfaWRzIjpbInBheSJdLCJwYXlsb2FkIjp7InRyYW5zYWN0aW9uX2lkIjoidHgtMDAwMSJ9fQ",
@@ -540,7 +570,7 @@ The wallet ends the flow with `wmp.flow.complete`. The result has exactly these 
 }
 ```
 
-`selection_handle` is chosen by the wallet at random (at least 128 bits, base64url) for this flow only. It MUST NOT be derived from a credential, its identifier, its content or the user, and MUST NOT be reused in another flow. The orchestrator treats it as an opaque string it can hand back: it MAY include it unchanged as `selection_handle` in the `sign` params of the `sign_presentation` that follows (Section 3.2.5), where the wallet maps it to its own selection. The orchestrator MUST NOT interpret it.
+`selection_handle` is chosen by the wallet at random (at least 128 bits, base64url) for this flow only. It MUST NOT be derived from a credential, its identifier, its content or the user, and MUST NOT be reused in another flow. The orchestrator treats it as an opaque string it can hand back: the wallet puts it in each element of `selections` of the `select_credentials` action (Section 3.2.3.1), and the orchestrator includes it unchanged as `selection_handle` in the `sign` params of the `sign_presentation` that follows (Section 3.2.5), where the wallet maps it to its own selection. The orchestrator MUST NOT interpret it.
 
 #### 3.3.3 No credential data reaches the orchestrator
 
@@ -637,8 +667,9 @@ verifier-agent                   user-wallet
       │                              │
       │<── wmp.flow.action ──────────│
       │   {action: "select_credentials",
-      │    params: {selections: [...],│
-      │             consent: true}}  │
+      │    params: {consent: true,   │
+      │      selections: [{query_id, │
+      │       selection_handle}]}}   │
       │                              │
       │<── wmp.flow.complete ────────│
       │   {result: {vp_token: "..."}}│
@@ -653,7 +684,7 @@ Before presenting credentials or accepting issued credentials, implementations M
 
 ### 6.2 Selective Disclosure
 
-When the `oid4vp` flow reaches `awaiting_consent`, the wallet MUST present the user with the specific claims requested and allow the user to control which claims are disclosed. Implementations MUST NOT disclose claims beyond what the user explicitly consents to.
+When the `oid4vp` flow reaches `awaiting_consent`, the wallet MUST present the user with the specific claims requested and allow the user to control which claims are disclosed. Implementations MUST NOT disclose claims beyond what the user explicitly consents to, and the wallet MUST NOT disclose beyond what the verifier's query asks for. That bound is enforced in the wallet; the orchestrator never sees claim names in the `select_credentials` action (Section 3.2.3.1) and so cannot vet them.
 
 ### 6.3 Nonce Binding
 
@@ -684,7 +715,7 @@ The members below are optional extension members in the sense of WMP Core Sectio
 | `verifier_jwk_thumbprint` | `sign` params (`sign_presentation`) | string | 7.2 | 0.1.0 |
 | `verifier_session_id` | `sign` params (`sign_presentation`) | string | 7.3 | 0.1.0 |
 | `verified_request` | `sign` params (`sign_presentation`); matching request params; `credential_selection` progress payload | object | 7.5 | 0.1.0 |
-| `selection_handle` | `sign` params (`sign_presentation`); `match` result | string | 3.3 | 0.1.0 |
+| `selection_handle` | `sign` params (`sign_presentation`); `match` result; each element of `selections` in `select_credentials` params | string | 3.2.3.1, 3.3 | 0.1.0 |
 | `credential_response_encryption` | `sign` params (`generate_proof`) | object | 7.6 | 0.1.0 |
 | `jwe`, `deferred` | `sign` params (`decrypt_credential_response`) | string, boolean | 7.6 | 0.1.0 |
 | `credential_response_encrypted` | `oid4vci` completion result | boolean | 3.1.4, 7.6 | 0.1.0 |

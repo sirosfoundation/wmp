@@ -127,9 +127,12 @@ Agent                   Relay            User's Wallet
   │      presentation_definition: {...}}}       │
   │                       │                    │
   │                       │<── wmp.flow.action │
-  │                       │   {action: "consent",
+  │                       │   {action: "select_credentials",
   │<──────────────────────│    params: {       │
-  │                       │     approved: true}│
+  │                       │     consent: true, │
+  │                       │     selections: [{ │
+  │                       │      query_id,     │
+  │                       │      selection_handle}]}
   │                       │                    │
   │                       │<── wmp.flow.complete
   │<──────────────────────│   {vp_token: "..."}│
