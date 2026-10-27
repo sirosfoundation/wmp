@@ -38,7 +38,7 @@
       "params": {
         "wmp": {
           "version": "0.1",
-          "session_id": "ses-mlsopt001",
+          "session_id": "ses-mls-opt-001",
           "sender": "x509:san:dns:alice.example.com"
         },
         "to": ["x509:san:dns:carol.example.com"],
