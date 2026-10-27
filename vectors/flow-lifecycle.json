@@ -849,7 +849,7 @@
   },
   {
     "id": "flow-oid4vp-transaction-data-unsupported-no-redirect",
-    "description": "As above, for a response mode with no redirect: data is exactly {\"unsupported\": \"transaction_data\"}.",
+    "description": "As above, when the verifier returned no redirect: data is exactly {\"unsupported\": \"transaction_data\"}.",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -868,7 +868,7 @@
       }
     },
     "expected_response": null,
-    "notes": "direct_post and similar modes produce no redirect."
+    "notes": "This vector assumes a verifier response that carried no redirect (a direct_post whose verifier answered without redirect_uri). When the verifier does return a redirect, in any response mode, redirect_uri is added as in flow-oid4vp-transaction-data-unsupported; omission depends on whether the verifier actually returned one, not on the response mode."
   },
   {
     "id": "flow-sign-rejected",
