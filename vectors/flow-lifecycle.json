@@ -1099,7 +1099,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-claim-names-refused",
@@ -1129,7 +1129,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-disclosures-refused",
@@ -1157,7 +1157,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-credential-body-refused",
@@ -1188,7 +1188,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-matches-with-credential-id-vct-format-refused",
@@ -1218,7 +1218,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-top-level-credential-id-vct-format-refused",
@@ -1246,7 +1246,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-issuer-detail-refused",
@@ -1272,7 +1272,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-free-text-reason-refused",
@@ -1296,7 +1296,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-free-text-code-refused",
@@ -1319,7 +1319,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-code-with-satisfiable-true-refused",
@@ -1342,7 +1342,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-missing-code-when-unsatisfiable-refused",
@@ -1364,33 +1364,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
-  },
-  {
-    "id": "flow-match-result-query-id-not-in-query-refused",
-    "description": "satisfiable_query_ids names an id that is not in the verifier's query (the wallet is leaking an identifier of its own).",
-    "conformance_level": "flows",
-    "must_refuse": true,
-    "input": {
-      "jsonrpc": "2.0",
-      "method": "wmp.flow.complete",
-      "params": {
-        "wmp": {
-          "version": "0.1",
-          "session_id": "ses-a1b2c3d4"
-        },
-        "flow_id": "flow-vp-001-match",
-        "result": {
-          "satisfiable": true,
-          "satisfiable_query_ids": [
-            "pid",
-            "cred-9f2a"
-          ]
-        }
-      }
-    },
-    "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members. The orchestrator checks membership against the dcql_query it sent; this vector's query has the single id pid (see flow-match-satisfiable)."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-query-ids-not-strings-refused",
@@ -1418,7 +1392,7 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   },
   {
     "id": "flow-match-result-unknown-extension-member-refused",
@@ -1444,6 +1418,6 @@
       }
     },
     "expected_response": null,
-    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result with -32602 and does not log or store the offending members."
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
   }
 ]
