@@ -100,7 +100,7 @@ On reconnection, the client sends `wmp.session.resume` with the previous `sessio
   "params": {
     "wmp": {"version": "0.1"},
     "session_id": "ses-a1b2c3d4",
-    "last_message_id": "msg-previous"
+    "last_received_id": "msg-previous"
   }
 }
 ```
@@ -159,27 +159,94 @@ Accept: text/event-stream
 HTTP/1.1 200 OK
 Content-Type: text/event-stream
 
+id: 41
 event: wmp
 data: {"jsonrpc":"2.0","method":"wmp.flow.progress","params":{...}}
 
+id: 42
 event: wmp
 data: {"jsonrpc":"2.0","method":"wmp.message.deliver","params":{...}}
 ```
 
-Client-to-server messages are sent via POST while listening on the SSE stream.
+Client-to-server messages are sent via POST while listening on the SSE stream. The remainder of this section applies to every binding that uses SSE, including the streamable mode of Section 4.4.
+
+Two terms are used below: the **event buffer** is the bounded per-session record of events a server has sent, from which it can replay; the **cursor** is the event ID a client last received.
+
+#### 4.3.1 Session IDs and Access Control
+
+- The session ID is assigned by the server. It is returned in `wmp.session_id` of the `wmp.session.create` result (Section 4.1 of [wmp-core.md](wmp-core.md)). A `wmp.session.create` request MUST NOT carry a session ID, in the `wmp` metadata object or in the `Wmp-Session-Id` header; a server MUST refuse one that does with `-32602` (Invalid params) and MUST NOT create a session under a client-chosen ID. Session IDs MUST carry at least 128 bits of entropy from a cryptographically secure source.
+- Every POST and every GET of this binding MUST be authenticated (Section 4.4 of [wmp-core.md](wmp-core.md)), and the server MUST bind the session to the authenticated principal that created it. A renewed or replacement credential for that same principal is accepted (Section 8.7.1 of [wmp-core.md](wmp-core.md)); it is the principal that is bound, not the credential string. A request with no valid credentials MUST be answered with HTTP `401`.
+- A request that names a session that does not exist and a request that names a session owned by a different principal MUST be indistinguishable to the caller: same HTTP status (`404` for a GET of the event stream), same body, and for a POST the same JSON-RPC error `-31000` (Session not found). A server MUST NOT reveal that a session ID exists to a principal that does not own it.
+
+#### 4.3.2 Event IDs
+
+- Every event the server sends for a session MUST carry an SSE `id` field.
+- An event ID is an opaque string of printable ASCII characters (no spaces, no control characters). Event IDs are unique within a session and strictly ordered by emission: the server can tell which of two IDs was emitted first. They are not guaranteed to be contiguous, and a client MUST NOT parse, increment or compare them; it only stores the last one it received and sends it back.
+- A replayed event carries the ID it had when it was first sent.
+- The SSE `event` field is `wmp` and `data` holds exactly one JSON-RPC message (Section 2.2).
+- A client records the ID of each event after processing it. It dedupes by event ID: an event whose ID it has already processed, delivered again by a replay, MUST NOT be processed a second time.
+
+#### 4.3.3 Replay with `Last-Event-ID`
+
+A client that reconnects to the event stream resumes from its cursor by sending it:
+
+- as the `Last-Event-ID` HTTP request header; a server MUST accept this form; and
+- as the `last_event_id` query parameter of the GET, for clients that cannot set request headers on the first request of an event stream (for example a browser `EventSource` that is created anew rather than reconnected by the user agent). A server SHOULD accept this form. When a request carries both, the header takes precedence.
+
+Reattaching an event stream this way is not a rebind of a suspended session: the HTTPS session is bound to the credential, not to the connection (Section 8.7.1 and the HTTPS exception of Section 8.7.2 of [wmp-core.md](wmp-core.md)), so no `wmp.session.resume` is needed first.
+
+When the cursor is present and the server holds every event emitted after it, the server MUST send those events, in order, each exactly once, before any event emitted after the stream was opened, and MUST NOT send the event the cursor names. When the cursor is the newest event, nothing is replayed. When the request carries no cursor, the server sends no replay: the stream starts at the next event emitted. A client that needs the past events of a session it has no cursor for uses `wmp.session.resume` (Section 4.5 of [wmp-core.md](wmp-core.md)).
+
+Replayed events are retained copies. A server that retains outbound notifications MUST NOT retain members that profile documents define as secret in the retained copy; the live notification is delivered only to the connection that is streaming when it is emitted. The replay of a `wmp.flow.complete` of the OpenID4VCI flow is specified in Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md): the secret members are omitted and listed in `redacted_members`. A client that needs them stays connected from before it starts the flow until the completion arrives.
+
+#### 4.3.4 Event Buffer and Gaps
+
+A server MUST bound the event buffer of every session, by event count and SHOULD also by total size, so that a slow or absent client cannot make it grow without limit. A server SHOULD retain at least the 200 most recent events of a session. The oldest events are evicted first. Eviction is not announced.
+
+A **gap** exists when the server cannot replay every event emitted after the cursor. Eviction of the cursor event itself is not a gap: the cursor names an event the client already has, so what matters is whether its successor is still held. To tell, a server keeps, besides the buffered events, the ID of the newest event it has evicted (the eviction watermark). A cursor is replayable when it is the watermark or any retained event; it presents a gap when it is older than the watermark, or when the server does not recognise it as an ID it issued for this session (never issued, or the session's buffer and watermark were discarded, for example by a restart). A server cannot always tell the unrecognised cases apart from an evicted one and MUST treat them the same way.
+
+When the cursor presents a gap, the server MUST answer the GET with HTTP `410` (Gone) and MUST NOT open the event stream, so that no part of the replay is delivered. The body is OPTIONAL; if present it is `application/json` and is a JSON-RPC error object. A `410` is not a transport failure to be retried with the same cursor.
+
+A client that receives a `410`:
+
+1. MUST stop reconnecting with that cursor and discard it;
+2. opens a new event stream with no cursor, so that it has a connection to receive on;
+3. then calls `wmp.session.resume` (Section 4.5 of [wmp-core.md](wmp-core.md)) with its `resumption_token`. A client whose session create result carried no `resumption_token` (Core Section 4.5.2 makes it a SHOULD) cannot resume; it creates a new session instead. The notifications the server re-sends as part of that resume (below) are delivered on the stream of step 2. Events emitted between the 410 and the resume are not lost either: they are on that stream.
+
+If the resume fails (`-31000` or `-31001`, Section 4.5.4 of [wmp-core.md](wmp-core.md)), the client creates a new session.
+
+The events lost in the gap are not recovered through the event stream, and the protocol has no in-band resynchronisation message. What a client needs to continue is recovered by the resume:
+
+- the latest `wmp.flow.progress` of every active flow (Section 4.5.3 of [wmp-core.md](wmp-core.md)); and
+- the terminal notification (`wmp.flow.complete`, `wmp.flow.error` or the cancellation) of every flow of the session that has ended. A server MUST therefore keep the terminal notification of each flow for the lifetime of the session, outside the event buffer, in its redacted form (Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md)), and MUST re-send those on resume, after the progress notifications. A client that already processed the terminal notification of a flow ignores the repeat. The notifications that resume re-sends are new events of the stream: they get fresh event IDs, ordered after every ID issued so far, so the client's cursor only moves forward and a later reconnect replays them once (and no stale progress after them). They are not replays of the original IDs. Without this a client whose terminal notification was evicted would wait for a flow that has ended.
+
+A secret member of a completion that was only ever delivered live is never recovered; the client treats the issuance as Section 3.1.4.2 of [wmp-openid4x.md](wmp-openid4x.md) describes. The resume result does not say when the re-sent notifications have all arrived (they come on the event stream, not in the POST response), and an active flow that has not yet emitted progress has nothing to re-send. A client therefore MUST NOT fail a flow only because no notification for it arrived after a resume; the flow's own timeout (Section 6.2.1 of [wmp-core.md](wmp-core.md)) applies.
+
+#### 4.3.5 Heartbeat
+
+An idle event stream is indistinguishable, to a client, from a connection that a proxy has dropped silently. The server SHOULD therefore write an SSE comment line (a line that begins with `:`, for example `: keepalive`) followed by a blank line to every open event stream at least every 30 seconds in which no event was sent. A comment carries no `id`, is not a WMP message and MUST NOT change the client's cursor.
+
+A client SHOULD treat 90 seconds without any bytes from the server on an event stream as a dead connection, close it and reconnect with its cursor (the same bounds as the WebSocket ping of Section 3.3). A server MAY send an SSE `retry` field to set the reconnection delay of the user agent.
+
+A server MUST NOT let one slow reader stall delivery to other connections or block the code that emits events: it SHOULD close a stream whose write does not complete within a bounded time. The client then reconnects with its cursor, which is exactly the recovery of Section 4.3.3 and, if the buffer has moved on, of Section 4.3.4.
 
 ### 4.4 Streamable HTTP Mode
 
 Following MCP's streamable HTTP pattern, a single endpoint can handle both directions:
 
 - **POST /wmp** — Client sends JSON-RPC requests. Server responds with JSON-RPC responses. The response MAY be streamed as SSE if the request includes `Accept: text/event-stream`.
-- **GET /wmp** — Opens an SSE stream for server-initiated notifications.
+- **GET /wmp** — Opens an SSE stream for server-initiated notifications. Sections 4.3.1 to 4.3.5 apply to this stream as they do to the stream of Section 4.3; the session is named by the `Wmp-Session-Id` header or the `session_id` query parameter.
 
 ### 4.5 Session Correlation
 
 HTTP requests MUST include the session ID:
 - In the `wmp` metadata object within the JSON-RPC message, OR
-- In the `Wmp-Session-Id` HTTP header.
+- In the `Wmp-Session-Id` HTTP header, OR
+- In the `session_id` query parameter of a GET (Section 4.3).
+
+Every request except `wmp.session.create` carries one of these; the ID is the one the server assigned (Section 4.3.1). When a request carries the ID in more than one place the values MUST be equal, otherwise the server MUST refuse it with `-32602` (Invalid params).
+
+In this binding the `last_received_id` of `wmp.session.resume` ([wmp-core.md](wmp-core.md) Section 4.5.1) is the last **event ID** the client received on the event stream (Section 4.3.2), not a message `id`. A client that has no event ID omits it. A server that cannot find the event ID MUST still resume the session (resume is the recovery for a gap, Section 4.3.4) and report what it knows in `missed_messages`.
 
 ### 4.6 Polling Fallback
 

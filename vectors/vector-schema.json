@@ -9,9 +9,18 @@
     "description": { "type": "string" },
     "conformance_level": {
       "type": "string",
-      "enum": ["basic", "secure", "flows", "agent", "registered", "wallet", "interop"]
+      "enum": ["basic", "secure", "flows", "agent", "registered", "wallet", "interop", "transport"]
     },
-    "input": { "description": "The JSON-RPC message to send." },
+    "kind": { "type": "string", "enum": ["rpc", "interop", "transport-http"], "description": "How the vector is executed. Absent means the kind of the file it is in, as listed in manifest.json." },
+    "setup": {
+      "type": "object",
+      "description": "Server configuration for a transport-http vector (see README.md).",
+      "properties": {
+        "event_buffer": { "type": "integer", "minimum": 1, "description": "Per-session event buffer size, in events." },
+        "principals": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Principal name to the Authorization header value that authenticates it." }
+      }
+    },
+    "input": { "description": "The JSON-RPC message to send. For a transport-http vector: an array of steps (see README.md)." },
     "expected_response": { "description": "The expected JSON-RPC response (if request). Use null to assert no response is produced (e.g. notifications)." },
     "expected_error": { "$ref": "../schema/wmp-error.json", "description": "Expected error response." },
     "handler_action": {

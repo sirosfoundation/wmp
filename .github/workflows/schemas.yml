@@ -15,3 +15,4 @@ jobs:
           python-version: "3.12"
       - run: python3 -m pip install jsonschema referencing
       - run: python3 tests/test_schemas.py
+      - run: python3 tests/test_vectors.py

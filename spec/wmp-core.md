@@ -787,6 +787,7 @@ On successful resumption:
 - Active flows resume from their last state (no automatic restart). The responder MUST re-send the latest `wmp.flow.progress` for each active flow as part of message replay (§6.2.1).
 - The MLS epoch is preserved — the client continues with its current group state
 - The server delivers any queued messages since `last_received_id`
+- The responder also re-sends the terminal notification (`wmp.flow.complete`, `wmp.flow.error`, cancellation) of every flow of the session that has ended, after the progress notifications; a participant that already processed one ignores the repeat. See Transport Section 4.3.4 for why: a terminal notification may have been lost with an evicted event.
 
 #### 4.5.4 Resumption Failure
 
@@ -2284,7 +2285,7 @@ When a session is created, the server binds it to the authenticated identity of 
 | Transport | Binding mechanism |
 |-----------|-------------------|
 | WebSocket | The session is bound to the WebSocket connection. Only messages from the same connection (or a successfully resumed connection via §4.5) are accepted. |
-| HTTPS | The session is bound to the bearer token or mTLS certificate. Each HTTP request MUST present the same credential. |
+| HTTPS | The session is bound to the authenticated principal (the identity that the bearer token or mTLS certificate authenticates), not to one credential string. Each HTTP request MUST present a valid credential that authenticates that same principal. A renewed or replacement credential for the same principal (a refreshed bearer token, a reissued certificate) is accepted without a rebind; a credential for a different principal is refused as for an unknown session. |
 | Native messaging | The session is bound to the process identity (extension ID, socket peer credentials). |
 
 **Invariant:** A message on session `S` is accepted only if it arrives on a transport connection authenticated as the sender identity recorded for that session.
@@ -2297,6 +2298,8 @@ When a transport connection drops:
 3. To rebind, the participant MUST use `wmp.session.resume` (§4.5) with a valid `resumption_token`.
 4. The server re-authenticates the participant during resumption (the `resumption_token` serves as proof of prior authentication).
 5. After successful resumption, the session is bound to the new transport connection and queued messages are delivered. The server sends `wmp.message.status` notifications with status `delivered` to senders for any queued messages that were successfully delivered on reconnect.
+
+**HTTPS exception.** An HTTPS session is bound to the credential, not to a connection (§8.7.1). The loss of an event stream (or of any single HTTP request) therefore does not suspend it, and a client reattaches by opening a new event stream with the same credential, resuming the stream from its cursor as Transport Section 4.3.3 describes; `wmp.session.resume` is not needed for that. Steps 1 to 5 apply to an HTTPS session only when the server has actually suspended it or lost its stream state (for example after a restart); the client then learns of it by a `410` (Transport Section 4.3.4) or `-31000`/`-31001` and recovers with `wmp.session.resume`. Expiry of the credential is a different case: every request is then answered `401` (Transport Section 4.3.1), the client reauthenticates first, and only then reattaches the stream or resumes.
 
 A `session_id` alone is NEVER sufficient to send messages — it is not a secret and MUST NOT be treated as one. The binding is to the authenticated identity, not the session ID string.
 

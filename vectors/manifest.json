@@ -1,0 +1,37 @@
+{
+  "description": "Every vector file in this directory and how a harness executes it. A harness MUST fail, not skip, when a listed file is missing or a file in this directory is not listed. tests/test_vectors.py enforces the second.",
+  "files": [
+    {
+      "file": "session-create.json",
+      "kind": "rpc"
+    },
+    {
+      "file": "session-lifecycle.json",
+      "kind": "rpc"
+    },
+    {
+      "file": "message-deliver.json",
+      "kind": "rpc"
+    },
+    {
+      "file": "flow-lifecycle.json",
+      "kind": "rpc"
+    },
+    {
+      "file": "resolve.json",
+      "kind": "rpc"
+    },
+    {
+      "file": "errors.json",
+      "kind": "rpc"
+    },
+    {
+      "file": "interop.json",
+      "kind": "interop"
+    },
+    {
+      "file": "transport-http.json",
+      "kind": "transport-http"
+    }
+  ]
+}
