@@ -230,6 +230,87 @@ class FlowCompleteMatchResult(unittest.TestCase):
         self.assertNotEqual(e({"satisfiable": True, "selection_handle": "A" * 25}), [])
         self.assertEqual(e({"satisfiable": True, "selection_handle": "A" * 23}), [])
         self.assertNotEqual(e({"satisfiable": True, "claims": {"a": "b"}}), [])
+        self.assertNotEqual(e({"satisfiable": True, "selection_handle": "A" * 24 + "\n"}), [])
+
+
+class FlowActionSelectCredentials(unittest.TestCase):
+    """openid4x 3.2.3.1: select_credentials params are a closed set."""
+
+    H = "Zm9yLXRoZS13YWxsZXQtb25seQ"
+
+    def msg(self, params):
+        return {"jsonrpc": "2.0", "id": "a1", "method": "wmp.flow.action",
+                "params": {"wmp": WMP, "flow_id": "f1", "action": "select_credentials",
+                           "params": params}}
+
+    def ok(self, params):
+        self.assertEqual(errors("methods/flow-action.json", self.msg(params)), [], params)
+
+    def bad(self, params):
+        self.assertNotEqual(errors("methods/flow-action.json", self.msg(params)), [], params)
+
+    def sel(self, **kw):
+        return {"consent": True,
+                "selections": [dict({"query_id": "pid", "selection_handle": self.H}, **kw)]}
+
+    def test_valid(self):
+        self.ok(self.sel())
+        self.ok({"consent": False})
+        self.ok({"consent": False, "selections": []})
+
+    def test_closed_set(self):
+        for extra in ({"credential_id": "c"}, {"disclosed_claims": ["a"]}, {"vct": "x"},
+                      {"format": "dc+sd-jwt"}, {"claims": {"a": "b"}}, {"label": "free"},
+                      {"x": 1}):
+            self.bad(self.sel(**extra))
+        self.bad(dict(self.sel(), credentials=[]))
+        self.bad({"consent": True, "selections": [{"credential_id": "c", "disclosed_claims": ["a"]}]})
+
+    def test_shape_rules(self):
+        self.bad({"selections": self.sel()["selections"]})
+        self.bad({"consent": "true", "selections": self.sel()["selections"]})
+        self.bad({"consent": True})
+        self.bad({"consent": True, "selections": []})
+        self.bad({"consent": False, "selections": self.sel()["selections"]})
+        self.bad({"consent": True, "selections": [{"query_id": "pid"}]})
+        self.bad({"consent": True, "selections": [{"selection_handle": self.H}]})
+        self.bad(self.sel(query_id="my pid!"))
+        self.bad(self.sel(query_id="a" * 257))
+        for ch in ("\u0085", "\u00a0", "\u2003", "\u2028", "\u3000", "\u200b", "\ufeff", "\u007f"):
+            self.bad(self.sel(query_id="a" + ch + "b"))
+        self.ok(self.sel(query_id="id_card.1:\u00e5"))
+        self.bad(self.sel(query_id=""))
+        self.bad(self.sel(query_id="pid\n"))
+
+    def test_handle_format(self):
+        for h in ("short", self.H + "==", "A" * 25, "A" * 22 + "\n", "A" * 24 + "\n", "Zm9yLXRoZS13YWxsZXQ+b25seQ", 5, None):
+            self.bad(self.sel(selection_handle=h))
+        self.ok(self.sel(selection_handle="A" * 22))
+        self.ok(self.sel(selection_handle="A" * 24))
+
+    def test_params_required(self):
+        m = self.msg({"consent": False})
+        del m["params"]["params"]
+        self.assertNotEqual(errors("methods/flow-action.json", m), [])
+
+    def test_other_actions_unaffected(self):
+        m = self.msg({"credential_id": "x"})
+        m["params"]["action"] = "cancel"
+        self.assertEqual(errors("methods/flow-action.json", m), [])
+
+    def test_vectors(self):
+        vs = json.loads((ROOT / "vectors" / "flow-lifecycle.json").read_text())
+        vs = [v for v in vs if isinstance(v["input"], dict)
+              and v["input"].get("method") == "wmp.flow.action"
+              and v["input"]["params"].get("action") == "select_credentials"]
+        self.assertGreaterEqual(len([v for v in vs if v.get("must_refuse")]), 15)
+        self.assertGreaterEqual(len([v for v in vs if not v.get("must_refuse")]), 2)
+        for v in vs:
+            errs = errors("methods/flow-action.json", v["input"])
+            if v.get("must_refuse"):
+                self.assertNotEqual(errs, [], v["id"] + " must be refused")
+            else:
+                self.assertEqual(errs, [], v["id"])
 
 
 class FlowCompleteBlindIssuance(unittest.TestCase):
