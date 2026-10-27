@@ -15,7 +15,7 @@
 `input` is an array of steps, run in order. A step has a `step` description and one of:
 
 - `request`: an HTTP request (`method`, `path`, `query`, `headers`, `body`). It is sent by the connection `conn` when present (a connection that stays open as an event stream, in which case the response's `events` are those delivered up to the next step) and otherwise as a plain request.
-- `emit`: the server side emits these JSON-RPC notifications to the session, in order. `deliver` then lists, per connection, the events that connection must receive live.
+- `emit`: the server side emits these JSON-RPC notifications to the session, in order. `deliver`, on an `emit` step or on a `request` step, lists per connection the events that connection must receive as a result of the step, in the order listed.
 - `close`: the named connection drops.
 
 `expect` on a request has `status`, optionally `body` (a JSON-RPC message), `events` (SSE events in order; an empty array means no event), `stream: false` (the response must not be an event stream, and no part of a replay may be delivered), `content_type`, `comments_at_least`, `comments_carry_no_id` and `idle_seconds` (advance a simulated clock; do not sleep). `same_response_as` names an earlier step's `label`: status and body must be identical.
