@@ -981,5 +981,96 @@
       }
     ],
     "notes": "Core Sections 4.5.3 and 6.2.1: the latest progress per active (non-terminal) flow only, not the whole history. A flow that already ended is not re-announced by this rule. Over the HTTPS binding last_received_id is an event ID (Transport Section 4.5)."
+  },
+  {
+    "id": "flow-match-satisfiable",
+    "description": "Local match: the wallet reports which of the verifier's query ids it can satisfy, plus an opaque handle.",
+    "conformance_level": "flows",
+    "input": [
+      {
+        "step": "orchestrator starts the match flow with the verifier's DCQL query",
+        "message": {
+          "jsonrpc": "2.0",
+          "id": "match-001",
+          "method": "wmp.flow.start",
+          "params": {
+            "wmp": {
+              "version": "0.1",
+              "session_id": "ses-a1b2c3d4",
+              "sender": "x509:san:dns:orchestrator.example.com"
+            },
+            "flow_type": "match",
+            "flow_id": "flow-vp-001-match",
+            "parent_flow_id": "flow-vp-001",
+            "params": {
+              "dcql_query": {
+                "credentials": [
+                  {
+                    "id": "pid",
+                    "format": "dc+sd-jwt",
+                    "meta": {
+                      "vct_values": [
+                        "urn:eudi:pid:1"
+                      ]
+                    },
+                    "claims": [
+                      {
+                        "path": [
+                          "family_name"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "step": "wallet answers with query ids and a handle only it understands",
+        "message": {
+          "jsonrpc": "2.0",
+          "method": "wmp.flow.complete",
+          "params": {
+            "wmp": {
+              "version": "0.1",
+              "session_id": "ses-a1b2c3d4"
+            },
+            "flow_id": "flow-vp-001-match",
+            "result": {
+              "satisfiable": true,
+              "satisfiable_query_ids": [
+                "pid"
+              ],
+              "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+            }
+          }
+        }
+      }
+    ],
+    "notes": "openid4x Section 3.3. The start carries only verifier data. The result is a closed set: satisfiable, satisfiable_query_ids, selection_handle, code."
+  },
+  {
+    "id": "flow-match-not-satisfiable",
+    "description": "Local match: nothing satisfies the query; code is the whole reason.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-002-match",
+        "result": {
+          "satisfiable": false,
+          "code": "no_match"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "code is one of no_match, insufficient, error; required when satisfiable is false, absent otherwise. No free-text reason."
   }
 ]

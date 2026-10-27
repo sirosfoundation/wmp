@@ -499,6 +499,56 @@ Towards the wallet the `oid4vp` flow ends with a terminal `wmp.flow.error` on th
 }
 ```
 
+### 3.3 `match` Flow — Local Credential Matching
+
+The `match` flow type lets an orchestrator ask the wallet whether it can satisfy a DCQL query, without learning anything about what the wallet holds beyond the answer. It is a nested flow of an `oid4vp` flow, linked to it by `parent_flow_id`, and is defined by this profile for use with the `oid4vp` capability: a wallet that did not negotiate `oid4vp` is sent no `match` flow, and a `match` start to such a wallet is `-31005` as for any flow type (WMP Core Section 3.8.1). It has no progress steps and no actions.
+
+#### 3.3.1 Start Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `dcql_query` | object | REQUIRED | The verifier's DCQL query, as validated by the orchestrator |
+| `client_metadata`, `verified_request` | object | OPTIONAL | The request context of Sections 7.1 and 7.5, with the same meaning as in the `sign_presentation` params |
+
+The start carries only data that originates from the verifier request. It carries nothing about the wallet.
+
+#### 3.3.2 Result
+
+The wallet ends the flow with `wmp.flow.complete`. The result has exactly these members:
+
+| Member | Type | Required | Description |
+|--------|------|----------|-------------|
+| `satisfiable` | boolean | REQUIRED | `true` if the wallet can satisfy the query, including its `credential_sets`; `false` otherwise |
+| `satisfiable_query_ids` | string[] | OPTIONAL | The `id` values of the query's credential queries that the wallet can satisfy. Each element MUST be an `id` that occurs in the `dcql_query` of the start, at most once |
+| `selection_handle` | string | OPTIONAL | An opaque handle that means something only to the wallet (below) |
+| `code` | string | REQUIRED when `satisfiable` is `false`, otherwise absent | `no_match` (no credential matches), `insufficient` (some match, the query as a whole cannot be satisfied) or `error` (the wallet could not evaluate the query) |
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "wmp.flow.complete",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_id": "flow-vp-001-match",
+    "result": {
+      "satisfiable": true,
+      "satisfiable_query_ids": ["pid"],
+      "selection_handle": "Zm9yLXRoZS13YWxsZXQtb25seQ"
+    }
+  }
+}
+```
+
+`selection_handle` is chosen by the wallet at random (at least 128 bits, base64url) for this flow only. It MUST NOT be derived from a credential, its identifier, its content or the user, and MUST NOT be reused in another flow. The orchestrator treats it as an opaque string it can hand back: it MAY include it unchanged as `selection_handle` in the `sign` params of the `sign_presentation` that follows (Section 3.2.5), where the wallet maps it to its own selection. The orchestrator MUST NOT interpret it.
+
+#### 3.3.3 No credential data reaches the orchestrator
+
+The wallet MUST evaluate the query locally. A `match` result MUST NOT carry anything other than the four members above. In particular it MUST NOT carry, in any member or at any depth: a claim value, a claim name or path, a disclosure, a credential or any part of one, a credential identifier, `vct`, `doctype`, a credential `format`, an issuer or trust-anchor identity, a count of credentials, or free text (including an error message or the reason for a failure; `code` is the whole reason). `satisfiable_query_ids` names the verifier's own query ids and nothing more.
+
+The orchestrator MUST refuse a result that has a member other than those of Section 3.3.2, whose members have the wrong type, whose `code` is not one of the listed values or is present when `satisfiable` is `true` or absent when it is `false`, or whose `satisfiable_query_ids` has an element that is not an `id` of the query or is repeated. It refuses with `-32602` (Invalid params), ends the `oid4vp` flow as failed, and MUST NOT log, store or forward the offending members. This is a closed set: the rule of WMP Core Section 9.5 that unknown members are ignored does not apply to a `match` result, because ignoring a member would still have received it.
+
+An orchestrator MUST NOT ask the wallet for credential data in order to match, and MUST NOT fall back to doing so when a wallet cannot match locally; such a wallet answers `satisfiable` `false` with `code` `error`, or ends the flow with `wmp.flow.error` `-31006` and `data.reason` `rejected` when the user declines. An orchestrator that uses this flow has no wallet-derived `matched_credentials` or `requested_claims` to put in the `awaiting_consent` payload of Section 3.2.2 and omits them; the wallet shows its own.
+
 ## 4. Complete OID4VCI Flow Example
 
 ```
@@ -615,7 +665,11 @@ Implementations MUST validate credential offers before processing:
 - Resolve and validate issuer metadata
 - Check credential types against known VCTMs
 
-### 6.5 Transaction Data
+### 6.5 Credential Matching
+
+Matching is where an orchestrator would most easily learn what a wallet holds, so Section 3.3.3 makes the result a closed set and forbids the orchestrator to ask for more. The answer reveals at most which of the verifier's own query ids the wallet can satisfy.
+
+### 6.6 Transaction Data
 
 `transaction_data` makes the user's consent legally significant (a payment authorization), so the display and the hash must describe the same bytes. Section 3.2.5 therefore has the wallet derive what it shows from `raw`, which is also what it hashes, and treat everything else the orchestrator sends as untrusted. Capability negotiation (Section 2.3) keeps the data away from wallets that would drop it silently; the orchestrator's refusal is the only barrier for those, so it MUST NOT be skipped for unauthenticated or "best effort" flows.
 
@@ -629,6 +683,7 @@ The members below are optional extension members in the sense of WMP Core Sectio
 | `verifier_jwk_thumbprint` | `sign` params (`sign_presentation`) | string | 7.2 | 0.1.0 |
 | `verifier_session_id` | `sign` params (`sign_presentation`) | string | 7.3 | 0.1.0 |
 | `verified_request` | `sign` params (`sign_presentation`); matching request params; `credential_selection` progress payload | object | 7.5 | 0.1.0 |
+| `selection_handle` | `sign` params (`sign_presentation`); `match` result | string | 3.3 | 0.1.0 |
 | `credential_response_encryption` | `sign` params (`generate_proof`) | object | 7.6 | 0.1.0 |
 | `jwe`, `deferred` | `sign` params (`decrypt_credential_response`) | string, boolean | 7.6 | 0.1.0 |
 | `credential_response_encrypted` | `oid4vci` completion result | boolean | 3.1.4, 7.6 | 0.1.0 |

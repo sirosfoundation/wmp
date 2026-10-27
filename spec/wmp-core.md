@@ -1720,7 +1720,7 @@ The following flow types are defined by WMP Core:
 | `message` | Free-form structured message exchange |
 
 Additional flow types are defined by profile documents:
-- OpenID4x profile ([wmp-openid4x.md](wmp-openid4x.md)): `oid4vci`, `oid4vp`
+- OpenID4x profile ([wmp-openid4x.md](wmp-openid4x.md)): `oid4vci`, `oid4vp`, `match`
 
 ### 6.4 Sign Flow
 
