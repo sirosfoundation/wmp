@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/leifj/wmp/schema/methods/issuer-entitlement.json",
   "title": "oid4vci trust_evaluated payload with an issuer entitlement result",
-  "description": "The payload of a wmp.flow.progress step trust_evaluated that carries issuer_entitlement_evaluated true (WMP OpenID4x 7.8), and the data of the wmp.flow.error that refuses an unentitled issuer (3.1.6) via #/$defs/refusalData.",
+  "description": "The payload of a wmp.flow.progress step trust_evaluated that carries issuer_entitlement_evaluated true (WMP OpenID4x 7.8), the data of the -31006 untrusted_issuer wmp.flow.error via #/$defs/refusalData, and the data of the -31020 issuer-not-entitled wmp.flow.error via #/$defs/notEntitledData (3.1.6).",
   "$defs": {
     "finding": {
       "type": "object",
@@ -19,8 +19,15 @@
       "required": ["reason", "retryable"],
       "properties": {
         "reason": { "const": "untrusted_issuer" },
+        "retryable": { "const": false }
+      }
+    },
+    "notEntitledData": {
+      "type": "object",
+      "required": ["retryable", "findings"],
+      "properties": {
         "retryable": { "const": false },
-        "findings": { "$ref": "#/$defs/findings" }
+        "findings": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/finding" } }
       }
     }
   },

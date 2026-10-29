@@ -1723,8 +1723,8 @@
               "vct": "urn:example:vct"
             }
           ],
-          "refresh\u005ftoken": "rt-secret-3",
-          "dpop\u005fjwk": "{\"kty\":\"EC\",\"d\":\"s\"}"
+          "refresh_token": "rt-secret-3",
+          "dpop_jwk": "{\"kty\":\"EC\",\"d\":\"s\"}"
         }
       }
     },
@@ -3018,36 +3018,7 @@
   },
   {
     "id": "flow-vci-refused-untrusted-issuer",
-    "description": "The oid4vci flow ends with -31006 reason untrusted_issuer, carrying the findings (OpenID4x 3.1.6).",
-    "conformance_level": "flows",
-    "input": {
-      "jsonrpc": "2.0",
-      "method": "wmp.flow.error",
-      "params": {
-        "wmp": {
-          "version": "0.1",
-          "session_id": "ses-a1b2c3d4"
-        },
-        "flow_id": "flow-vci-001",
-        "code": -31006,
-        "message": "Flow error",
-        "data": {
-          "reason": "untrusted_issuer",
-          "retryable": false,
-          "findings": [
-            {
-              "code": "attestation_type_not_registered",
-              "credential_type": "https://credentials.example.com/identity"
-            }
-          ]
-        }
-      }
-    },
-    "notes": "message is the fixed text of the code; nothing taken from the issuer."
-  },
-  {
-    "id": "flow-vci-refused-untrusted-issuer-no-findings",
-    "description": "Refusal for an untrusted issuer with no entitlement findings (the trust decision itself).",
+    "description": "The oid4vci flow ends with -31006 reason untrusted_issuer when the trust decision refuses the issuer (OpenID4x 3.1.6).",
     "conformance_level": "flows",
     "input": {
       "jsonrpc": "2.0",
@@ -3066,6 +3037,34 @@
         }
       }
     },
-    "notes": "findings is omitted."
+    "notes": "message is the fixed text of the code; no findings: entitlement refusals are -31020."
+  },
+  {
+    "id": "flow-vci-refused-issuer-not-entitled",
+    "description": "The oid4vci flow ends with -31020 Issuer not entitled, carrying the findings (OpenID4x 3.1.6, 7.8).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "code": -31020,
+        "message": "Issuer not entitled",
+        "data": {
+          "retryable": false,
+          "findings": [
+            {
+              "code": "attestation_type_not_registered",
+              "credential_type": "https://credentials.example.com/identity"
+            }
+          ]
+        }
+      }
+    },
+    "notes": "findings is required, 1 to 64 short machine-readable entries, no free text."
   }
 ]
