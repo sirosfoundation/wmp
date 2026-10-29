@@ -373,5 +373,37 @@ class FlowCompleteBlindIssuance(unittest.TestCase):
             self.assertNotEqual(errors("methods/flow-complete.json", res(bad)), [], bad)
 
 
+class ResolveResponse(unittest.TestCase):
+    """WMP Core 5.8.1: the result carries `metadata`; vctm is a closed projection."""
+
+    def res(self, **result):
+        base = {"wmp": WMP, "type": "vctm", "uri": "https://c.example/id"}
+        base.update(result)
+        return {"jsonrpc": "2.0", "id": 1, "result": base}
+
+    def test_vctm_projection_ok(self):
+        for m in ({"vct": "https://c.example/id"},
+                  {"vct": "v", "name": "n", "description": "d", "display": [{"lang": "en"}],
+                   "claims": [], "schema": {}}, None):
+            self.assertEqual(errors("methods/resolve-response.json", self.res(metadata=m)), [], m)
+
+    def test_vctm_other_members_and_missing_vct_refused(self):
+        for m in ({"name": "n"}, {"vct": ""}, "text", []):
+            self.assertNotEqual(errors("methods/resolve-response.json", self.res(metadata=m)), [], m)
+
+    def test_unknown_members_are_ignored_not_refused(self):
+        # Core 9.5 rules 1 and 7: schemas stay open.
+        inst = self.res(metadata={"vct": "v", "extends": "x"})
+        self.assertEqual(errors("methods/resolve-response.json", inst), [])
+
+    def test_body_and_content_type_are_not_the_result_shape(self):
+        inst = self.res(content_type="application/vctm+json", body={"vct": "v"})
+        self.assertNotEqual(errors("methods/resolve-response.json", inst), [])
+
+    def test_other_types_carry_any_metadata(self):
+        inst = self.res(type="endpoint", metadata={"anything": 1})
+        self.assertEqual(errors("methods/resolve-response.json", inst), [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
