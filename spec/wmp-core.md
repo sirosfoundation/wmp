@@ -374,6 +374,7 @@ WMP extends the standard JSON-RPC 2.0 error code space:
 | -31017 | Assurance level unsupported | Requested recipient assurance level cannot be met |
 | -31018 | Policy unsupported | One or more applicable policies cannot be enforced |
 | -31019 | Plaintext hash mismatch | Decrypted plaintext does not match the sender's `plaintext_hash` commitment (§5.2.1) |
+| -31020 | Issuer not entitled | The issuer of an OID4VCI offer is not registered to issue the credential configurations it offers (OpenID4x Section 3.1.6) |
 
 #### 3.8.1 `-31005` Capability not supported
 

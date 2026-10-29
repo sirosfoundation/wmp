@@ -145,19 +145,23 @@ class IssuerEntitlementVectors(unittest.TestCase):
     def test_vectors_match_schema(self):
         doc = json.loads((ROOT / "schema" / "methods" / "issuer-entitlement.json").read_text())
         payload = Draft202012Validator(doc, registry=REGISTRY)
-        refusal = Draft202012Validator({"$ref": doc["$id"] + "#/$defs/refusalData"},
-                                       registry=REGISTRY.with_resource(doc["$id"], Resource.from_contents(doc)))
+        reg = REGISTRY.with_resource(doc["$id"], Resource.from_contents(doc))
+        untrusted = Draft202012Validator({"$ref": doc["$id"] + "#/$defs/refusalData"}, registry=reg)
+        not_entitled = Draft202012Validator({"$ref": doc["$id"] + "#/$defs/notEntitledData"}, registry=reg)
         seen = 0
         for _, v in all_vectors():
-            if not v["id"].startswith(("flow-vci-issuer-entitlement-", "flow-vci-refused-untrusted-issuer")):
+            if not v["id"].startswith(("flow-vci-issuer-entitlement-", "flow-vci-refused-")):
                 continue
             seen += 1
             p = v["input"]["params"]
             if v["input"]["method"] == "wmp.flow.progress":
                 self.assertEqual(list(payload.iter_errors(p["payload"])), [], v["id"])
+            elif p["code"] == -31020:
+                self.assertEqual(p["message"], "Issuer not entitled", v["id"])
+                self.assertEqual(list(not_entitled.iter_errors(p["data"])), [], v["id"])
             else:
                 self.assertEqual(p["code"], -31006, v["id"])
-                self.assertEqual(list(refusal.iter_errors(p["data"])), [], v["id"])
+                self.assertEqual(list(untrusted.iter_errors(p["data"])), [], v["id"])
         self.assertEqual(seen, 4)
 
 
