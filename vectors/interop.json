@@ -26,7 +26,8 @@
         "type": "vctm",
         "uri": "https://interop.example.com/credential",
         "metadata": {
-          "source": "echo"
+          "vct": "https://interop.example.com/credential",
+          "name": "echo"
         }
       }
     },
@@ -41,7 +42,8 @@
         "type": "vctm",
         "uri": "https://interop.example.com/credential",
         "metadata": {
-          "source": "echo"
+          "vct": "https://interop.example.com/credential",
+          "name": "echo"
         }
       }
     },

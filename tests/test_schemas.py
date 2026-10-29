@@ -388,8 +388,13 @@ class ResolveResponse(unittest.TestCase):
             self.assertEqual(errors("methods/resolve-response.json", self.res(metadata=m)), [], m)
 
     def test_vctm_other_members_and_missing_vct_refused(self):
-        for m in ({"name": "n"}, {"vct": ""}, {"vct": "v", "extends": "x"}, "text", []):
+        for m in ({"name": "n"}, {"vct": ""}, "text", []):
             self.assertNotEqual(errors("methods/resolve-response.json", self.res(metadata=m)), [], m)
+
+    def test_unknown_members_are_ignored_not_refused(self):
+        # Core 9.5 rules 1 and 7: schemas stay open.
+        inst = self.res(metadata={"vct": "v", "extends": "x"})
+        self.assertEqual(errors("methods/resolve-response.json", inst), [])
 
     def test_body_and_content_type_are_not_the_result_shape(self):
         inst = self.res(content_type="application/vctm+json", body={"vct": "v"})
