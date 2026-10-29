@@ -139,5 +139,41 @@ class TransportVectors(unittest.TestCase):
                     self.assertTrue(step["emit"], where)
 
 
+class CredentialNotificationVectors(unittest.TestCase):
+    """The credential_notification vectors (OpenID4x 3.4) match their schemas."""
+
+    @staticmethod
+    def schema(name):
+        doc = json.loads((ROOT / "schema" / "methods" / name).read_text())
+        return Draft202012Validator(doc, registry=REGISTRY)
+
+    def test_vectors_match_schemas(self):
+        params = self.schema("credential-notification-params.json")
+        result = self.schema("credential-notification-result.json")
+        sign = self.schema("sign-client-auth-result.json")
+        seen = 0
+        for _, v in all_vectors():
+            if not v["id"].startswith("flow-credential-notification-"):
+                continue
+            seen += 1
+            msg = v["input"]
+            p = msg.get("params", {})
+            if msg.get("method") == "wmp.flow.start" and p.get("flow_type") == "credential_notification":
+                if "expected_error" not in v or v["expected_error"]["error"]["code"] != -32602:
+                    self.assertEqual(list(params.iter_errors(p["params"])), [], v["id"])
+                elif v["expected_error"]["error"]["data"]["member"] != "event":
+                    # an event the orchestrator does not offer is schema-valid: offering is its choice
+                    self.assertNotEqual(list(params.iter_errors(p["params"])), [], v["id"])
+            if msg.get("method") == "wmp.flow.complete":
+                self.assertEqual(list(result.iter_errors(p["result"])), [], v["id"])
+            if msg.get("method") == "wmp.flow.error":
+                self.assertEqual(list(result.iter_errors(p["data"])), [], v["id"])
+            if p.get("params", {}).get("action") == "sign_client_auth":
+                self.assertEqual(list(sign.iter_errors({"dpop_proof": "x"})), [], v["id"])
+                self.assertEqual({"action", "parent_flow_id", "htm", "htu", "ath", "dpop_nonce", "key_id"},
+                                 set(p["params"]), v["id"])
+        self.assertGreaterEqual(seen, 8)
+
+
 if __name__ == "__main__":
     unittest.main()

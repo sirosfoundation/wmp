@@ -27,6 +27,7 @@ This profile defines the following capabilities for use in `wmp.session.create` 
 | `oid4vci` | OID4VCI credential issuance flows | `supported_grants`: grant types, `supported_formats`: credential formats |
 | `oid4vp` | OID4VP verifiable presentation flows | `supported_response_modes`: response modes, `supported_formats`: credential formats |
 | `transaction_data` | OID4VP `transaction_data` processing (EC TS12 payment SCA) | `versions`: capability versions, `hash_algs`: hash algorithms |
+| `credential_notification` | OID4VCI credential notifications after the issuance flow has completed (Section 3.4) | `events`: events the orchestrator forwards, `context_ttl_seconds`: how long it keeps the context |
 
 Implementations that need VCTM resolution SHOULD also negotiate the `resolve` capability (WMP Core Section 5.8) with `"vctm"` in `supported_types`.
 
@@ -104,6 +105,23 @@ A wallet offers `transaction_data` when it can process OID4VP `transaction_data`
 - An orchestrator MUST NOT send `transaction_data` to a wallet whose **offered** capabilities (`capabilities_offered` in `wmp.session.create`) do not list a version it supports. The test is on what the wallet offered, not on the negotiated result: negotiation may fall back to all of the orchestrator's capabilities when a wallet offers none, and that is not evidence that the wallet supports anything.
 - When a request carries `transaction_data` and the wallet did not offer the capability, the orchestrator MUST end the OID4VP flow with `wmp.flow.error` code `-31005` (Capability not supported) and `data` `{"unsupported": "transaction_data"}`, and MUST report the failure to the verifier as `invalid_transaction_data` (OID4VP). It MUST NOT omit the transaction data and continue. When the verifier's response mode produced a redirect (for example `query` or `fragment`), the orchestrator adds its URL as `redirect_uri` to the same `data` (`{"unsupported": "transaction_data", "redirect_uri": "..."}`), as it does for a refused presentation (Section 3.2.6). `unsupported` is always present; `redirect_uri` is an additive extension member (WMP Core Sections 3.8.1 and 9.5) and a wallet that does not know it ignores it.
 - A wallet that does not offer the capability behaves exactly as before for every request that carries no `transaction_data`.
+
+### 2.4 `credential_notification` Capability
+
+An orchestrator advertises `credential_notification` when it retains, after an `oid4vci` flow completed, what it needs to send the issuer an OID4VCI Notification Request (OpenID4VCI Section 11) on the wallet's behalf, and a wallet offers it when it will use the `credential_notification` flow (Section 3.4). A `credential_notification` flow start in a session that did not negotiate the capability is `-31005` with `data` `{"unsupported": "credential_notification"}` (Core Section 3.8.1).
+
+**Parameters** (both OPTIONAL):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `events` | string[] | The notification events the orchestrator forwards. Absent means `["credential_accepted", "credential_failure"]`. |
+| `context_ttl_seconds` | integer | How long, after the `oid4vci` completion, the orchestrator keeps the notification context. Informative: a wallet SHOULD send the notification well within it. |
+
+```json
+{"credential_notification": {"events": ["credential_accepted", "credential_failure"], "context_ttl_seconds": 300}}
+```
+
+An orchestrator that does not negotiate the capability MAY keep no context. Negotiating it changes nothing in the `oid4vci` flow or its completion.
 
 ## 3. Flow Types
 
@@ -584,6 +602,98 @@ The orchestrator MUST refuse a result that has a member other than those of Sect
 
 An orchestrator MUST NOT ask the wallet for credential data in order to match, and MUST NOT fall back to doing so when a wallet cannot match locally; such a wallet answers `satisfiable` `false` with `code` `error`, or ends the flow with `wmp.flow.error` `-31006` and `data.reason` `rejected` when the user declines. A rejected `match` sub-flow is handled exactly as a rejected `sign` sub-flow in Section 3.2.6: the orchestrator ends the `oid4vp` flow at once, without waiting for a timeout, reports `access_denied` to the verifier with the request's `state` and no `error_description`, does not forward the sub-flow's `message` or other `data`, and sends the wallet the terminal `wmp.flow.error` of Section 3.2.6 on the parent flow. An orchestrator that uses this flow has no wallet-derived `matched_credentials` or `requested_claims` to put in the `awaiting_consent` payload of Section 3.2.2 and omits them; the wallet shows its own.
 
+### 3.4 `credential_notification` Flow: Notifications After Completion
+
+An `oid4vci` flow is terminal once `wmp.flow.complete` has been sent, and a sub-flow cannot outlive its parent, so the orchestrator cannot ask the wallet for anything on behalf of a finished issuance. The OID4VCI notification (the wallet tells the issuer that it accepted a credential, or that storing it failed) happens after that. The `credential_notification` flow type carries it: the wallet starts a new flow, and the orchestrator runs it like any other flow, including a nested `sign` flow when the issuer's access token is DPoP-bound with a key only the wallet holds. It is defined for use with the `credential_notification` capability (Section 2.4).
+
+#### 3.4.1 Start Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `issuance_flow_id` | string | REQUIRED | The `flow_id` of the completed `oid4vci` flow. 1 to 256 characters |
+| `notification_id` | string | REQUIRED | The `notification_id` of the `credentials[]` entry the notification is about (Section 3.1.4). 1 to 256 characters |
+| `event` | string | REQUIRED | `credential_accepted` or `credential_failure`, and an event the orchestrator listed in `events` of its capability |
+| `event_description` | string | OPTIONAL | The OpenID4VCI `event_description`. At most 512 characters, printable ASCII |
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "cn-1",
+  "method": "wmp.flow.start",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_type": "credential_notification",
+    "flow_id": "flow-cn-001",
+    "params": {"issuance_flow_id": "flow-vci-001", "notification_id": "nid-77", "event": "credential_accepted"}
+  }
+}
+```
+
+The orchestrator validates `params` before it starts the flow, and refuses invalid `params` as the response to the `wmp.flow.start`: `-32602` with `data` `{"member": "<name>"}`, where `<name>` is the first member of the table above that is missing, has the wrong type, is out of bounds or (for `event`) is not offered. `data` names a member and never contains a value from the request. Members of `params` not listed here are ignored (Core Section 9.5). A start that repeats a `flow_id` already in use in the session is not a new notification: the orchestrator MUST NOT send the issuer a second request for it.
+
+#### 3.4.2 Behaviour of the Orchestrator
+
+1. **Context.** The orchestrator looks up the context it retained for `issuance_flow_id`. The context is bound to the principal that ran the issuance: it MUST NOT be used for a flow of another principal. It is single use: the first notification flow that reaches the forwarding step consumes it, so a second notification for the same issuance finds none. It expires after the orchestrator's TTL (`context_ttl_seconds`). The context holds the issuer's notification endpoint, the access token and its type, the DPoP nonce and the `notification_id` the issuer returned; it MUST NOT be written to durable storage unencrypted, and a deployment that shares it between replicas MUST encrypt it at rest and bound its lifetime by the TTL. If the context is absent, expired, consumed, belongs to another principal, is held by another replica, or its `notification_id` differs from the one in the start, the flow ends with `context_unavailable` (below). The reasons are not distinguished, so the flow is no oracle for what exists.
+2. **Authorization.** The flow type is authorized exactly as `oid4vci`: an orchestrator that restricts flow types by token authorization MUST NOT authorize `credential_notification` more broadly than `oid4vci`, and MUST refuse a request that does not come from the principal that owns the session with `-31002`.
+3. **Client-held DPoP key.** When the retained context is DPoP-bound and the key is held by the wallet (the wallet reported a `dpop_key_id`, Section 3.1.5), the orchestrator starts a nested `sign` flow with `action` `sign_client_auth` (Section 3.4.3) and `parent_flow_id` the notification flow, once for each DPoP proof the request needs, then sends the issuer the Notification Request with it. The sub-flow follows the rules of Section 3.1.5 and the refusal rules of Section 3.2.6: a wallet that declines or fails ends it with `wmp.flow.error`. If the orchestrator holds the key itself no sub-flow is started.
+4. **Forwarding.** The orchestrator POSTs the Notification Request (`notification_id`, `event`, and `event_description` when present) to the issuer's notification endpoint with the retained access token, repeating once with a new DPoP nonce when the issuer asks for one (RFC 9449 Section 8). It applies the same address and scheme policy as for any other fetch it makes. A 200 or 204 response is success.
+5. **End.** On success the flow ends with `wmp.flow.complete` and `result` `{"status": "forwarded", "notification_id": "<id>"}`. Otherwise it ends with `wmp.flow.error`, code `-31006` and `data` `{"reason": "<reason>", "retryable": <boolean>}`:
+
+| `reason` | `retryable` | Meaning |
+|----------|-------------|---------|
+| `context_unavailable` | `false` | No usable context (item 1) |
+| `busy` | `true` | The orchestrator is at its limit for notifications it forwards at once. The context is kept; the wallet MAY start the flow again, with a new `flow_id` |
+| `signing_failed` | `false` | The wallet did not return a DPoP proof: it declined, failed or did not answer within the orchestrator's timeout |
+| `forward_failed` | `false` | The issuer could not be reached or answered with a status other than 200 or 204 |
+
+`message` and `data` carry nothing taken from the issuer or the wallet: no issuer response, no text of a sub-flow error. A notification is best effort (OpenID4VCI Section 11): a wallet MUST NOT treat any of these as a failure of the issuance, and SHOULD NOT start the flow again except after `busy`.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "wmp.flow.error",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_id": "flow-cn-001",
+    "code": -31006,
+    "message": "Flow error",
+    "data": {"reason": "context_unavailable", "retryable": false}
+  }
+}
+```
+
+#### 3.4.3 `sign_client_auth` for the Notification
+
+For a DPoP-bound notification the `sign` params carry `action` `sign_client_auth`, `parent_flow_id`, `htm` (the HTTP method), `htu` (the notification endpoint URL), `ath` (base64url of the SHA-256 of the access token, RFC 9449 Section 4.2), `dpop_nonce` when the issuer supplied one, and `key_id`, the `dpop_key_id` the wallet reported at issuance, which names the key the wallet MUST sign with. The wallet completes the sub-flow with `dpop_proof`, the DPoP proof JWT (a non-empty string) over exactly those values, and MAY repeat `dpop_key_id`. The wallet MUST refuse (end the sub-flow with `wmp.flow.error`) a `sign_client_auth` whose `parent_flow_id` is not a `credential_notification` flow it started, whose `key_id` is not the key of the issuance named by that flow's `issuance_flow_id`, or whose `htm` is not `POST`; it MUST NOT sign an arbitrary request on an orchestrator's say-so. The orchestrator MUST treat a result without a non-empty `dpop_proof` string as a failed sign (`signing_failed`). The result carries no other secret: the proof is a signature over the request, not a key.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "cn-sign-1",
+  "method": "wmp.flow.start",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_type": "sign",
+    "flow_id": "flow-cn-001-sign-1",
+    "params": {
+      "action": "sign_client_auth",
+      "parent_flow_id": "flow-cn-001",
+      "htm": "POST",
+      "htu": "https://issuer.example.com/notification",
+      "ath": "fUHyO2r2Z3DZ53EsNrWBb0xWXoaNy59IiKCAqksmQEo",
+      "dpop_nonce": "srv-nonce-1",
+      "key_id": "instance-key-1"
+    }
+  }
+}
+```
+
+The same action is used by the orchestrator during issuance to authenticate requests to the issuer's authorization server; this section defines the members that a notification needs and does not specify the client attestation members.
+
+#### 3.4.4 Ordering, Replay and Replicas
+
+The flow, its sub-flows and its terminal message are ordinary flow messages: they carry event identifiers, are replayed after a resume (Core Section 4.5) and the terminal message is re-sent (Transport Section 4.3.4), with nothing to redact. A wallet MUST be connected to the event stream before it starts the flow and stay connected until the terminal message, because the `sign` start arrives on the stream; if it is lost, the sub-flow times out and the flow ends with `signing_failed`. A notification flow is not tied to the `oid4vci` flow's lifetime: it can be started in a later session of the same principal within the TTL, but an orchestrator that keeps the context in the memory of one replica answers `context_unavailable` when the start reaches another.
+
 ## 4. Complete OID4VCI Flow Example
 
 ```
@@ -708,6 +818,10 @@ Matching is where an orchestrator would most easily learn what a wallet holds, s
 ### 6.6 Transaction Data
 
 `transaction_data` makes the user's consent legally significant (a payment authorization), so the display and the hash must describe the same bytes. Section 3.2.5 therefore has the wallet derive what it shows from `raw`, which is also what it hashes, and treat everything else the orchestrator sends as untrusted. Capability negotiation (Section 2.3) keeps the data away from wallets that would drop it silently; the orchestrator's refusal is the only barrier for those, so it MUST NOT be skipped for unauthenticated or "best effort" flows.
+
+### 6.7 Notifications After Completion
+
+The context kept for a notification holds an access token, so it is bound to the principal that ran the issuance, used once, and bounded in time (Section 3.4.2). The wallet signs a `sign_client_auth` request only for a notification flow it started itself (Section 3.4.3): without that rule an orchestrator that is compromised after an issuance could ask for DPoP proofs for arbitrary requests with the key the issuer bound the token to. No error of the flow carries text from the issuer or the wallet.
 
 ## 7. Extension Members
 

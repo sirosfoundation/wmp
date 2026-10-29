@@ -373,5 +373,46 @@ class FlowCompleteBlindIssuance(unittest.TestCase):
             self.assertNotEqual(errors("methods/flow-complete.json", res(bad)), [], bad)
 
 
+class CredentialNotification(unittest.TestCase):
+    """WMP OpenID4x 3.4: the notification flow's params, result and error data."""
+    P = "methods/credential-notification-params.json"
+    R = "methods/credential-notification-result.json"
+    S = "methods/sign-client-auth-result.json"
+    BASE = {"issuance_flow_id": "flow-vci-001", "notification_id": "nid-77",
+            "event": "credential_accepted"}
+
+    def test_params_ok(self):
+        self.assertEqual(errors(self.P, self.BASE), [])
+        self.assertEqual(errors(self.P, with_(self.BASE, ["event_description"], "stored ok")), [])
+        # Members not listed are ignored (Core 9.5).
+        self.assertEqual(errors(self.P, with_(self.BASE, ["x_other"], 1)), [])
+
+    def test_params_refused(self):
+        for path in (["issuance_flow_id"], ["notification_id"], ["event"]):
+            self.assertNotEqual(errors(self.P, without(self.BASE, path)), [], path)
+        for path, v in ((["issuance_flow_id"], ""), (["notification_id"], "x" * 257),
+                        (["event"], 7), (["event_description"], "x" * 513),
+                        (["event_description"], "caf\u00e9"), (["event_description"], "a\nb")):
+            self.assertNotEqual(errors(self.P, with_(self.BASE, path, v)), [], (path, v))
+
+    def test_result_and_error_data(self):
+        for ok in ({"status": "forwarded", "notification_id": "nid-77"},
+                   {"reason": "busy", "retryable": True},
+                   {"reason": "context_unavailable", "retryable": False}):
+            self.assertEqual(errors(self.R, ok), [], ok)
+        for bad in ({"status": "queued", "notification_id": "n"},
+                    {"status": "forwarded"},
+                    {"status": "forwarded", "notification_id": "n", "issuer_response": "x"},
+                    {"reason": "mismatch", "retryable": False},
+                    {"reason": "busy"},
+                    {"reason": "busy", "retryable": True, "detail": "issuer said no"}):
+            self.assertNotEqual(errors(self.R, bad), [], bad)
+
+    def test_sign_client_auth_result(self):
+        self.assertEqual(errors(self.S, {"dpop_proof": "a.b.c", "dpop_key_id": "k1"}), [])
+        for bad in ({}, {"dpop_proof": ""}, {"dpop_proof": 1}):
+            self.assertNotEqual(errors(self.S, bad), [], bad)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
