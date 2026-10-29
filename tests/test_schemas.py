@@ -405,6 +405,10 @@ class IssuerEntitlement(unittest.TestCase):
                      with_(self.BASE, ent + ["findings"], [{"code": "a" * 65}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "a", "message": "x" * 257}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "a", "credential_type": "x" * 129}]),
+                     # control, bidi and zero-width characters (7.8: sanitised by the sender)
+                     *[with_(self.BASE, ent + ["findings"], [{"code": "a", "credential_type": "urn:x" + c}])
+                       for c in ("\n", "\x1b", "\u200b", "\ufeff", "\u202e", "\x7f")],
+                     with_(self.BASE, ent + ["findings"], [{"code": "a", "message": "line\nbreak"}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "a"}] * 17),
                      with_(self.BASE, ent + ["entitlements"], ["x" * 257]),
                      with_(self.BASE, ent + ["entitlements"], ["x"] * 65),

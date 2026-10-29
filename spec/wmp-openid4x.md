@@ -331,8 +331,13 @@ Neither error carries anything taken from the issuer beyond the bounded `issuer`
     "code": -31020,
     "message": "Issuer not entitled",
     "data": {
-      "retryable": false,
-      "findings": [{"code": "attestation_type_not_registered", "credential_type": "https://credentials.example.com/identity"}]
+      "issuer": "https://issuer.example.com",
+      "issuer_entitlement": {
+        "allowed": false,
+        "mode": "fail",
+        "evaluated": true,
+        "findings": [{"code": "attestation_type_not_registered", "message": "The issuer is not registered to issue this credential type.", "credential_type": "https://credentials.example.com/identity"}]
+      }
     }
   }
 }

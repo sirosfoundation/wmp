@@ -20,11 +20,19 @@
         },
         "message": {
           "type": "string",
-          "maxLength": 256
+          "maxLength": 256,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u2064\\ufeff]*$",
+          "not": {
+            "pattern": "\\n$"
+          }
         },
         "credential_type": {
           "type": "string",
-          "maxLength": 128
+          "maxLength": 128,
+          "pattern": "^[^\\u0000-\\u001f\\u007f-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060-\\u2064\\ufeff]*$",
+          "not": {
+            "pattern": "\\n$"
+          }
         }
       }
     },
