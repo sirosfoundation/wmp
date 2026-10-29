@@ -10,7 +10,7 @@
 
 This document defines the WMP profile for OpenID for Verifiable Credential Issuance (OID4VCI) and OpenID for Verifiable Presentations (OID4VP) flows. It specifies the capabilities, flow types, step identifiers, and action identifiers required to run these protocols over WMP.
 
-Verifiable Credential Type Metadata (VCTM) resolution is handled by the generic `wmp.resolve` mechanism defined in WMP Core Section 5.8, using resolution type `vctm`.
+Verifiable Credential Type Metadata (VCTM) resolution is handled by the generic `wmp.resolve` mechanism defined in WMP Core Section 5.8, using resolution type `vctm`. The result carries the type metadata in `metadata` and has the same content as the type metadata a wallet backend embeds with an issued credential; Core Section 5.8.1 ("`vctm` resolution") defines the lookup, the members and the failure behaviour.
 
 This profile builds on [WMP Core](wmp-core.md) Section 6 (Structured Flows) and Section 6.5 (Profile-Defined Flow Types).
 

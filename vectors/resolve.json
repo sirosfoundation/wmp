@@ -30,10 +30,12 @@
           "vct": "https://credentials.example.com/identity",
           "name": "National ID Card",
           "description": "Government-issued identity credential",
-          "display": { "name": "National ID", "locale": "en" },
+          "display": [
+            { "lang": "en", "name": "National ID", "description": "Government-issued identity credential" }
+          ],
           "claims": [
-            { "path": ["given_name"], "display": { "name": "First name" } },
-            { "path": ["family_name"], "display": { "name": "Last name" } }
+            { "path": ["given_name"], "display": [{ "lang": "en", "name": "First name" }] },
+            { "path": ["family_name"], "display": [{ "lang": "en", "name": "Last name" }] }
           ]
         },
         "trust_info": {
@@ -45,7 +47,7 @@
   },
   {
     "id": "resolve-not-found",
-    "description": "Resolve returns null metadata when URI is unknown.",
+    "description": "Resolve returns null metadata when the orchestrator knows the URI is unknown (one that cannot tell unknown from unreachable answers as in resolve-fetch-failed).",
     "conformance_level": "basic",
     "input": {
       "jsonrpc": "2.0",
@@ -72,6 +74,52 @@
         "uri": "https://unknown.example.com/nonexistent",
         "metadata": null
       }
+    }
+  },
+  {
+    "id": "resolve-fetch-failed",
+    "description": "A vctm lookup that finds no document, cannot reach one or finds one that is not a JSON object is an error, not null (WMP Core 5.8.1).",
+    "conformance_level": "basic",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "res-004",
+      "method": "wmp.resolve",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "type": "vctm",
+        "uri": "https://unreachable.example.com/vct"
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "res-004",
+      "error": { "code": -32603, "message": "Internal error", "data": { "reason": "metadata_fetch_error" } }
+    }
+  },
+  {
+    "id": "resolve-empty-uri",
+    "description": "A vctm resolve with an empty uri is invalid params.",
+    "conformance_level": "basic",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "res-005",
+      "method": "wmp.resolve",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "type": "vctm",
+        "uri": ""
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "res-005",
+      "error": { "code": -32602, "message": "Invalid params" }
     }
   },
   {
