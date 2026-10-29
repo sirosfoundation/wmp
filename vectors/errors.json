@@ -325,5 +325,38 @@
       }
     },
     "notes": "Core Section 5.1. Session ses-orch001 is a tls session whose only participant is the wallet, served by an orchestrator that runs flows and routes no messages. The message is not handed to the flow engine and is not acknowledged. An inbound wmp.message.ack or wmp.message.status notification to such a responder is logged and counted, produces no response, and is not routed to the flow engine."
+  },
+  {
+    "id": "error-plaintext-hash-mismatch",
+    "description": "The decrypted plaintext does not hash to the sender's plaintext_hash commitment.",
+    "conformance_level": "secure",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "msg-err-019",
+      "method": "wmp.message.deliver",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-mlsopt001",
+          "sender": "x509:san:dns:alice.example.com",
+          "encrypted": true,
+          "epoch": 3
+        },
+        "ciphertext": "dGVzdC1jaXBoZXJ0ZXh0LWV4YW1wbGU",
+        "plaintext_hash": {
+          "algorithm": "sha-256",
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "msg-err-019",
+      "error": {
+        "code": -31019,
+        "message": "Plaintext hash mismatch"
+      }
+    },
+    "notes": "Core Section 3.8.2. The recipient decrypted the ciphertext (a placeholder here, as in message-deliver-encrypted-plaintext-hash), hashed the plaintext content object and got something other than plaintext_hash.value. It does not acknowledge, and error.data carries neither the recomputed hash nor plaintext. NOTE FOR HARNESS OWNERS: go-wmp and wmp-js do not define -31019 yet (go-wmp errors.go, wmp-js ErrorCode), so their structural error check fails on this vector until they do; merge this after both define it."
   }
 ]
