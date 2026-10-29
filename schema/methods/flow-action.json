@@ -23,6 +23,12 @@
           "type": "object",
           "description": "Action-specific parameters."
         }
+      },
+      "if": { "required": ["action"], "properties": { "action": { "const": "select_credentials" } } },
+      "then": {
+        "description": "select_credentials (wmp-openid4x Section 3.2.3.1) has closed params: consent and per-query selections of {query_id, selection_handle}, nothing else.",
+        "required": ["params"],
+        "properties": { "params": { "$ref": "select-credentials-params.json" } }
       }
     }
   }
