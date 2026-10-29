@@ -3363,11 +3363,45 @@
               "notification_id": "nid-77"
             }
           ],
+          "notification_endpoint": "https://issuer.example.com/notification?tenant=a"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "The wallet records notification_endpoint and signs its form without query and fragment (https://issuer.example.com/notification) as htu, as in flow-credential-notification-sign-client-auth."
+  },
+  {
+    "id": "flow-credential-notification-issuance-completion-two-responses",
+    "description": "A completion of an issuance with two Credential Responses carries each response's notification_id; each id is notified once (OpenID4x 3.4.2).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-002",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJ...a",
+              "vct": "https://credentials.example.com/identity",
+              "notification_id": "nid-a"
+            },
+            {
+              "format": "mso_mdoc",
+              "credential": "o2dkb...",
+              "notification_id": "nid-b"
+            }
+          ],
           "notification_endpoint": "https://issuer.example.com/notification"
         }
       }
     },
     "expected_response": null,
-    "notes": "The wallet records notification_endpoint with the issuance and signs only that htu for a notification."
+    "notes": "Two notification flows, one per id, are accepted; a second flow for nid-a finds nothing (context_unavailable)."
   }
 ]

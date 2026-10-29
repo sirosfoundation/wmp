@@ -179,13 +179,15 @@ class CredentialNotificationVectors(unittest.TestCase):
                 self.assertNotEqual(list(Draft202012Validator(result_schema).iter_errors(bad)), [], v["id"])
                 self.assertTrue(p["result"]["credentials"][0]["notification_id"], v["id"])
                 self.assertTrue(p["result"]["notification_endpoint"].startswith("https://"), v["id"])
+                ids = [c["notification_id"] for c in p["result"]["credentials"]]
+                self.assertEqual(len(ids), len(set(ids)) if len(ids) > 1 else 1, v["id"])
             if msg.get("method") == "wmp.flow.error":
                 self.assertEqual(list(error_data.iter_errors(p["data"])), [], v["id"])
             if p.get("params", {}).get("action") == "sign_client_auth":
                 self.assertEqual(list(sign.iter_errors({"dpop_proof": "x"})), [], v["id"])
                 self.assertEqual({"action", "parent_flow_id", "htm", "htu", "ath", "dpop_nonce", "key_id"},
                                  set(p["params"]), v["id"])
-        self.assertGreaterEqual(seen, 11)
+        self.assertGreaterEqual(seen, 12)
 class IssuerEntitlementVectors(unittest.TestCase):
     """The issuer-entitlement vectors (OpenID4x 7.8, 3.1.6) match their schema."""
 
