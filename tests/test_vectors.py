@@ -159,6 +159,9 @@ class IssuerEntitlementVectors(unittest.TestCase):
             elif p["code"] == -31020:
                 self.assertEqual(p["message"], "Issuer not entitled", v["id"])
                 self.assertEqual(list(not_entitled.iter_errors(p["data"])), [], v["id"])
+                # the refusal repeats a decision that is valid as progress too
+                as_progress = {"issuer_entitlement_evaluated": True, **p["data"]}
+                self.assertEqual(list(payload.iter_errors(as_progress)), [], v["id"])
             else:
                 self.assertEqual(p["code"], -31006, v["id"])
                 self.assertEqual(list(untrusted.iter_errors(p["data"])), [], v["id"])

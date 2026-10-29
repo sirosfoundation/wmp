@@ -2,55 +2,154 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/leifj/wmp/schema/methods/issuer-entitlement.json",
   "title": "oid4vci trust_evaluated payload with an issuer entitlement result",
-  "description": "The payload of a wmp.flow.progress step trust_evaluated that carries issuer_entitlement_evaluated true (WMP OpenID4x 7.8), the data of the -31006 untrusted_issuer wmp.flow.error via #/$defs/refusalData, and the data of the -31020 issuer-not-entitled wmp.flow.error via #/$defs/notEntitledData (3.1.6).",
+  "description": "The payload of a wmp.flow.progress step trust_evaluated that carries issuer_entitlement_evaluated true (WMP OpenID4x 7.8), the data of the -31006 untrusted_issuer wmp.flow.error via #/$defs/refusalData, and the data of the -31020 issuer-not-entitled wmp.flow.error via #/$defs/notEntitledData (3.1.6); both carry the decision of #/$defs/decision (7.8).",
   "$defs": {
     "finding": {
       "type": "object",
-      "required": ["code"],
+      "required": [
+        "code"
+      ],
       "properties": {
-        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64, "not": { "pattern": "\\n$" } },
-        "credential_type": { "type": "string", "maxLength": 256 }
-      },
-      "not": { "required": ["message"] }
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 64,
+          "not": {
+            "pattern": "\\n$"
+          }
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "credential_type": {
+          "type": "string",
+          "maxLength": 128
+        }
+      }
     },
-    "findings": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/finding" } },
+    "findings": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "$ref": "#/$defs/finding"
+      }
+    },
     "refusalData": {
       "type": "object",
-      "required": ["reason", "retryable"],
+      "required": [
+        "reason",
+        "retryable"
+      ],
       "properties": {
-        "reason": { "const": "untrusted_issuer" },
-        "retryable": { "const": false }
+        "reason": {
+          "const": "untrusted_issuer"
+        },
+        "retryable": {
+          "const": false
+        }
       },
-      "not": { "required": ["findings"] }
+      "not": {
+        "required": [
+          "findings"
+        ]
+      }
     },
     "notEntitledData": {
       "type": "object",
-      "required": ["retryable", "findings"],
+      "required": [
+        "issuer",
+        "issuer_entitlement"
+      ],
       "properties": {
-        "retryable": { "const": false },
-        "findings": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/finding" } }
+        "issuer": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "retryable": {
+          "const": false
+        },
+        "issuer_entitlement": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/decision"
+            },
+            {
+              "type": "object",
+              "required": [
+                "findings"
+              ],
+              "properties": {
+                "allowed": {
+                  "const": false
+                },
+                "mode": {
+                  "const": "fail"
+                },
+                "findings": {
+                  "minItems": 1
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "allowed",
+        "mode",
+        "evaluated"
+      ],
+      "properties": {
+        "allowed": {
+          "type": "boolean"
+        },
+        "mode": {
+          "enum": [
+            "warn",
+            "fail"
+          ]
+        },
+        "evaluated": {
+          "type": "boolean"
+        },
+        "findings": {
+          "$ref": "#/$defs/findings"
+        },
+        "findings_truncated": {
+          "type": "boolean"
+        },
+        "entitlements": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
       }
     }
   },
   "type": "object",
-  "required": ["issuer_entitlement_evaluated", "issuer", "issuer_entitlement"],
+  "required": [
+    "issuer_entitlement_evaluated",
+    "issuer",
+    "issuer_entitlement"
+  ],
   "properties": {
-    "issuer_entitlement_evaluated": { "const": true },
-    "issuer": { "type": "string", "minLength": 1, "maxLength": 2048 },
+    "issuer_entitlement_evaluated": {
+      "const": true
+    },
+    "issuer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
     "issuer_entitlement": {
-      "type": "object",
-      "required": ["allowed", "mode", "evaluated"],
-      "properties": {
-        "allowed": { "type": "boolean" },
-        "mode": { "enum": ["warn", "fail"] },
-        "evaluated": { "type": "boolean" },
-        "findings": { "$ref": "#/$defs/findings" },
-        "entitlements": {
-          "type": "array",
-          "maxItems": 64,
-          "items": { "type": "string", "maxLength": 256 }
-        }
-      }
+      "$ref": "#/$defs/decision"
     }
   }
 }

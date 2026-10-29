@@ -2972,12 +2972,11 @@
             "findings": [
               {
                 "code": "attestation_type_not_registered",
+                "message": "The issuer is not registered to issue this credential type.",
                 "credential_type": "https://credentials.example.com/identity"
               }
             ],
-            "entitlements": [
-              "https://uri.etsi.org/19475/Entitlement/Service_Provider"
-            ]
+            "findings_truncated": true
           }
         }
       }
@@ -3007,7 +3006,8 @@
             "evaluated": false,
             "findings": [
               {
-                "code": "no_access_certificate"
+                "code": "access_certificate_not_trusted",
+                "message": "The signing certificate chain is not trusted."
               }
             ]
           }
@@ -3055,16 +3055,22 @@
         "code": -31020,
         "message": "Issuer not entitled",
         "data": {
-          "retryable": false,
-          "findings": [
-            {
-              "code": "attestation_type_not_registered",
-              "credential_type": "https://credentials.example.com/identity"
-            }
-          ]
+          "issuer": "https://issuer.example.com",
+          "issuer_entitlement": {
+            "allowed": false,
+            "mode": "fail",
+            "evaluated": true,
+            "findings": [
+              {
+                "code": "attestation_type_not_registered",
+                "message": "The issuer is not registered to issue this credential type.",
+                "credential_type": "https://credentials.example.com/identity"
+              }
+            ]
+          }
         }
       }
     },
-    "notes": "findings is required, 1 to 64 short machine-readable entries, no free text."
+    "notes": "data repeats the issuer and the decision of the progress; allowed is false, mode fail, at least one finding."
   }
 ]
