@@ -186,7 +186,7 @@ class CredentialNotificationVectors(unittest.TestCase):
                 self.assertEqual(list(error_data.iter_errors(p["data"])), [], v["id"])
             if p.get("params", {}).get("action") == "sign_client_auth":
                 self.assertEqual(list(sign.iter_errors({"dpop_proof": "x"})), [], v["id"])
-                self.assertEqual({"action", "parent_flow_id", "htm", "htu", "ath", "dpop_nonce", "key_id"},
+                self.assertEqual({"action", "parent_flow_id", "htm", "htu", "ath", "dpop_nonce"},
                                  set(p["params"]), v["id"])
         self.assertGreaterEqual(seen, 13)
 class IssuerEntitlementVectors(unittest.TestCase):

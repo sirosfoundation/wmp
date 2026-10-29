@@ -3118,8 +3118,7 @@
           "htm": "POST",
           "htu": "https://issuer.example.com/notification",
           "ath": "fUHyO2r2Z3DZ53EsNrWBb0xWXoaNy59IiKCAqksmQEo",
-          "dpop_nonce": "srv-nonce-1",
-          "key_id": "instance-key-1"
+          "dpop_nonce": "srv-nonce-1"
         }
       }
     },
