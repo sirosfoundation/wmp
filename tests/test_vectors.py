@@ -139,5 +139,27 @@ class TransportVectors(unittest.TestCase):
                     self.assertTrue(step["emit"], where)
 
 
+class IssuerEntitlementVectors(unittest.TestCase):
+    """The issuer-entitlement vectors (OpenID4x 7.8, 3.1.6) match their schema."""
+
+    def test_vectors_match_schema(self):
+        doc = json.loads((ROOT / "schema" / "methods" / "issuer-entitlement.json").read_text())
+        payload = Draft202012Validator(doc, registry=REGISTRY)
+        refusal = Draft202012Validator({"$ref": doc["$id"] + "#/$defs/refusalData"},
+                                       registry=REGISTRY.with_resource(doc["$id"], Resource.from_contents(doc)))
+        seen = 0
+        for _, v in all_vectors():
+            if not v["id"].startswith(("flow-vci-issuer-entitlement-", "flow-vci-refused-untrusted-issuer")):
+                continue
+            seen += 1
+            p = v["input"]["params"]
+            if v["input"]["method"] == "wmp.flow.progress":
+                self.assertEqual(list(payload.iter_errors(p["payload"])), [], v["id"])
+            else:
+                self.assertEqual(p["code"], -31006, v["id"])
+                self.assertEqual(list(refusal.iter_errors(p["data"])), [], v["id"])
+        self.assertEqual(seen, 4)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -146,7 +146,7 @@ At least one of `credential_offer` or `credential_offer_uri` MUST be provided.
 | `resolving_metadata` | Fetching issuer metadata | — |
 | `metadata_fetched` | Issuer metadata retrieved | `issuer_metadata`: issuer metadata object |
 | `evaluating_trust` | Evaluating trust chain for issuer | — |
-| `trust_evaluated` | Trust evaluation complete | `trust_info`: trust evaluation result |
+| `trust_evaluated` | Trust evaluation complete | `trust_info`: trust evaluation result. With `issuer_entitlement_evaluated` `true`: the issuer entitlement result (Section 7.8) |
 | `awaiting_offer_acceptance` | Waiting for user to accept/select credential configurations from the offer | `credentials`: available credential configurations, `issuer_metadata`: display info |
 | `awaiting_tx_code` | Waiting for transaction code (PIN) | `tx_code_description`: description text |
 | `authorization_pending` | OAuth authorization in progress | `authorization_url`: URL for user-agent redirect |
@@ -310,6 +310,28 @@ When the issuer answers with a JWE (for the Credential Request or a Deferred Cre
 ```
 
 The client decrypts, keeps the credentials and the response-level `credential_metadata` locally, and completes the sub-flow with control members only: `transaction_id` (and optionally `interval`) when issuance is deferred, otherwise `credential_count` (1 to 256), never both; or an `error`. The server then polls the deferred endpoint (repeating the same `credential_response_encryption` JWK in the Deferred Credential Request) or completes the flow with `credential_response_encrypted: true`. The client supplies the `notification_id` itself in the credential notification.
+
+#### 3.1.6 Refusing an Untrusted or Unentitled Issuer
+
+When the orchestrator refuses to continue an `oid4vci` flow because the issuer is not trusted, or is not registered to issue what the offer proposes (Section 7.8), it ends the flow with a terminal `wmp.flow.error`, code `-31006` and `data` `{"reason": "untrusted_issuer", "retryable": false}`. For a refusal because of entitlement findings `data` also carries `findings`, the same array as `issuer_entitlement.findings` of Section 7.8, so that a wallet that did not see the progress message still has the reasons. `message` is the fixed text of the code (`Flow error`) and carries nothing taken from the issuer. A wallet MUST NOT start the issuance again on its own after this error.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "wmp.flow.error",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_id": "flow-vci-001",
+    "code": -31006,
+    "message": "Flow error",
+    "data": {
+      "reason": "untrusted_issuer",
+      "retryable": false,
+      "findings": [{"code": "attestation_type_not_registered", "credential_type": "https://credentials.example.com/identity"}]
+    }
+  }
+}
+```
 
 ### 3.2 `oid4vp` Flow — Verifiable Presentation
 
@@ -729,6 +751,8 @@ The members below are optional extension members in the sense of WMP Core Sectio
 | `response_encryption` | `sign` params (`sign_presentation`, `response_mode` `direct_post.jwt` only) | object | 7.7 | 0.1.0 |
 | `state` | `sign` params (`sign_presentation`, together with `response_encryption`) | string | 7.7 | 0.1.0 |
 | `response_jwe` | `sign` result (`sign_presentation`, `response_mode` `direct_post.jwt` only) | string | 7.7 | 0.1.0 |
+| `issuer_entitlement_evaluated`, `issuer`, `issuer_entitlement` | `trust_evaluated` progress payload of an `oid4vci` flow | boolean, string, object | 7.8 | 0.1.0 |
+| `findings` | `data` of the `wmp.flow.error` that refuses an `oid4vci` flow for an untrusted issuer | object[] | 3.1.6, 7.8 | 0.1.0 |
 
 ### 7.1 `client_metadata`
 
@@ -846,6 +870,47 @@ It answers the sign sub-flow with `response_jwe`, the compact JWE. The orchestra
   "enc": "A128GCM"
 },
 "state": "st-1"
+```
+
+### 7.8 Issuer entitlement (`issuer_entitlement`)
+
+An orchestrator that checks that the issuer of an offer is registered to issue the credential configurations the offer names (for example ARF 6.6.2.3: the metadata is signed with a WRPAC and the registration certificate covers the offered types) reports the result in the `trust_evaluated` progress of the `oid4vci` flow. This is separate from the issuer trust decision of `trust_info`: a trusted issuer can still be unregistered for what it offers. The members are additive (Core Section 9.5 rule 1): a wallet that does not know them shows what it showed before.
+
+The payload has `issuer_entitlement_evaluated` `true`, `issuer` (the credential issuer identifier of the offer, at most 2048 characters) and `issuer_entitlement`:
+
+| Member | Type | Required | Description |
+|--------|------|----------|-------------|
+| `allowed` | boolean | REQUIRED | Whether issuance may continue. In `warn` mode it stays `true` with findings |
+| `mode` | string | REQUIRED | `warn` or `fail`: what the orchestrator does with findings |
+| `evaluated` | boolean | REQUIRED | `false` when there was nothing to evaluate against. "Not evaluated" MUST NOT be read as "evaluated and acceptable" |
+| `findings` | object[] | OPTIONAL | At most 64 findings. Omitted when there are none |
+| `entitlements` | string[] | OPTIONAL | At most 64 identifiers the registration certificate lists, each at most 256 characters, for display |
+
+A finding is `{"code": "<code>", "credential_type": "<type>"}`. `code` is a short identifier (lowercase letters, digits and `_`, at most 64 characters); a wallet maps a code it does not know to a generic message. `credential_type` is OPTIONAL: the offered `vct` or doctype the finding is about, at most 256 characters. The codes defined here: `no_access_certificate`, `access_certificate_not_wrpac`, `no_registration_certificate`, `registration_certificate_malformed`, `registration_certificate_expired`, `registration_certificate_validity_too_long`, `registration_certificate_not_bound`, `not_an_attestation_provider`, `attestation_type_not_registered`. A finding carries no free text: the orchestrator MUST NOT put the issuer's metadata, the text of a certificate or an error message into it, and a wallet shows its own text for a code. A finding that has a `message` member is non-conforming (`schema/methods/issuer-entitlement.json` refuses it), whatever else it carries. All values originate from the issuer and a registration certificate, so a wallet treats them as untrusted data (it does not render them as markup, and bounds what it stores).
+
+The orchestrator sends the progress when it has findings, before it refuses (Section 3.1.6) or continues. In `fail` mode a finding refuses the flow; in `warn` mode the flow continues and the wallet SHOULD show the findings before the user accepts the offer.
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "wmp.flow.progress",
+  "params": {
+    "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
+    "flow_id": "flow-vci-001",
+    "step": "trust_evaluated",
+    "payload": {
+      "issuer_entitlement_evaluated": true,
+      "issuer": "https://issuer.example.com",
+      "issuer_entitlement": {
+        "allowed": true,
+        "mode": "warn",
+        "evaluated": true,
+        "findings": [{"code": "attestation_type_not_registered", "credential_type": "https://credentials.example.com/identity"}],
+        "entitlements": ["https://uri.etsi.org/19475/Entitlement/Service_Provider"]
+      }
+    }
+  }
+}
 ```
 
 ## References
