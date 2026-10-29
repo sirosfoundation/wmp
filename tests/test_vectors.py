@@ -149,7 +149,10 @@ class CredentialNotificationVectors(unittest.TestCase):
 
     def test_vectors_match_schemas(self):
         params = self.schema("credential-notification-params.json")
-        result = self.schema("credential-notification-result.json")
+        doc = json.loads((ROOT / "schema" / "methods" / "credential-notification-result.json").read_text())
+        reg = REGISTRY.with_resource(doc["$id"], Resource.from_contents(doc))
+        result = Draft202012Validator({"$ref": doc["$id"] + "#/$defs/result"}, registry=reg)
+        error_data = Draft202012Validator({"$ref": doc["$id"] + "#/$defs/errorData"}, registry=reg)
         sign = self.schema("sign-client-auth-result.json")
         seen = 0
         for _, v in all_vectors():
@@ -164,15 +167,25 @@ class CredentialNotificationVectors(unittest.TestCase):
                 elif v["expected_error"]["error"]["data"]["member"] != "event":
                     # an event the orchestrator does not offer is schema-valid: offering is its choice
                     self.assertNotEqual(list(params.iter_errors(p["params"])), [], v["id"])
-            if msg.get("method") == "wmp.flow.complete":
+            if msg.get("method") == "wmp.flow.complete" and "status" in p["result"]:
                 self.assertEqual(list(result.iter_errors(p["result"])), [], v["id"])
+            elif msg.get("method") == "wmp.flow.complete":
+                # the issuance completion that gives the wallet what it notifies with
+                completion = json.loads((ROOT / "schema" / "methods" / "flow-complete.json").read_text())
+                result_schema = completion["properties"]["params"]["properties"]["result"]
+                self.assertEqual(list(Draft202012Validator(result_schema).iter_errors(p["result"])), [], v["id"])
+                bad = json.loads(json.dumps(p["result"]))
+                bad["notification_endpoint"] = ""
+                self.assertNotEqual(list(Draft202012Validator(result_schema).iter_errors(bad)), [], v["id"])
+                self.assertTrue(p["result"]["credentials"][0]["notification_id"], v["id"])
+                self.assertTrue(p["result"]["notification_endpoint"].startswith("https://"), v["id"])
             if msg.get("method") == "wmp.flow.error":
-                self.assertEqual(list(result.iter_errors(p["data"])), [], v["id"])
+                self.assertEqual(list(error_data.iter_errors(p["data"])), [], v["id"])
             if p.get("params", {}).get("action") == "sign_client_auth":
                 self.assertEqual(list(sign.iter_errors({"dpop_proof": "x"})), [], v["id"])
                 self.assertEqual({"action", "parent_flow_id", "htm", "htu", "ath", "dpop_nonce", "key_id"},
                                  set(p["params"]), v["id"])
-        self.assertGreaterEqual(seen, 8)
+        self.assertGreaterEqual(seen, 11)
 class IssuerEntitlementVectors(unittest.TestCase):
     """The issuer-entitlement vectors (OpenID4x 7.8, 3.1.6) match their schema."""
 

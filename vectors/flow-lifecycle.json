@@ -3341,5 +3341,34 @@
       }
     },
     "notes": "Core 3.8.1."
+  },
+  {
+    "id": "flow-credential-notification-issuance-completion",
+    "description": "A plain oid4vci completion carries the issuer's notification_id per credential and the notification endpoint the wallet records (OpenID4x 3.1.4, 3.4.3).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJ...",
+              "vct": "https://credentials.example.com/identity",
+              "notification_id": "nid-77"
+            }
+          ],
+          "notification_endpoint": "https://issuer.example.com/notification"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "The wallet records notification_endpoint with the issuance and signs only that htu for a notification."
   }
 ]

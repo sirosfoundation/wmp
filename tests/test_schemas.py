@@ -392,25 +392,38 @@ class CredentialNotification(unittest.TestCase):
             self.assertNotEqual(errors(self.P, without(self.BASE, path)), [], path)
         for path, v in ((["issuance_flow_id"], ""), (["notification_id"], "x" * 257),
                         (["event"], 7), (["event_description"], "x" * 513),
-                        (["event_description"], "caf\u00e9"), (["event_description"], "a\nb")):
+                        (["event_description"], "caf\u00e9"), (["event_description"], "a\nb"),
+                        (["event_description"], "stored ok\n")):
             self.assertNotEqual(errors(self.P, with_(self.BASE, path, v)), [], (path, v))
 
+    def defn(self, name):
+        return Draft202012Validator({"$ref": SCHEMAS[self.R]["$id"] + "#/$defs/" + name}, registry=REGISTRY)
+
     def test_result_and_error_data(self):
-        for ok in ({"status": "forwarded", "notification_id": "nid-77"},
-                   {"reason": "busy", "retryable": True},
-                   {"reason": "context_unavailable", "retryable": False}):
-            self.assertEqual(errors(self.R, ok), [], ok)
-        for bad in ({"status": "queued", "notification_id": "n"},
-                    {"status": "forwarded"},
-                    {"reason": "mismatch", "retryable": False},
-                    {"reason": "busy"},
-                    {"reason": "busy", "retryable": 1}):
-            self.assertNotEqual(errors(self.R, bad), [], bad)
+        result, err = self.defn("result"), self.defn("errorData")
+        ok_result = {"status": "forwarded", "notification_id": "nid-77"}
+        self.assertEqual(list(result.iter_errors(ok_result)), [])
+        for bad in ({"status": "queued", "notification_id": "n"}, {"status": "forwarded"}):
+            self.assertNotEqual(list(result.iter_errors(bad)), [], bad)
+        # each definition is selected by the message method: neither accepts the other's object
+        self.assertNotEqual(list(result.iter_errors({"reason": "busy", "retryable": True})), [])
+        self.assertNotEqual(list(err.iter_errors(ok_result)), [])
+        for ok in ({"reason": "busy", "retryable": True}, {"reason": "context_unavailable", "retryable": False},
+                   {"reason": "signing_failed", "retryable": False}, {"reason": "forward_failed", "retryable": False}):
+            self.assertEqual(list(err.iter_errors(ok)), [], ok)
+        for bad in ({"reason": "mismatch", "retryable": False}, {"reason": "busy"},
+                    {"reason": "busy", "retryable": 1},
+                    # retryable follows the reason (3.4.2)
+                    {"reason": "busy", "retryable": False},
+                    {"reason": "context_unavailable", "retryable": True},
+                    {"reason": "signing_failed", "retryable": True},
+                    {"reason": "forward_failed", "retryable": True}):
+            self.assertNotEqual(list(err.iter_errors(bad)), [], bad)
 
     def test_unknown_members_are_ignored_not_refused(self):
         # Core 9.5 rules 1 and 7: schemas stay open; the text, not the schema, forbids issuer text.
-        self.assertEqual(errors(self.R, {"status": "forwarded", "notification_id": "n", "x_other": 1}), [])
-        self.assertEqual(errors(self.R, {"reason": "busy", "retryable": True, "x_other": 1}), [])
+        self.assertEqual(list(self.defn("result").iter_errors({"status": "forwarded", "notification_id": "n", "x_other": 1})), [])
+        self.assertEqual(list(self.defn("errorData").iter_errors({"reason": "busy", "retryable": True, "x_other": 1})), [])
 
     def test_sign_client_auth_result(self):
         self.assertEqual(errors(self.S, {"dpop_proof": "a.b.c", "dpop_key_id": "k1"}), [])
