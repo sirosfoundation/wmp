@@ -402,11 +402,15 @@ class CredentialNotification(unittest.TestCase):
             self.assertEqual(errors(self.R, ok), [], ok)
         for bad in ({"status": "queued", "notification_id": "n"},
                     {"status": "forwarded"},
-                    {"status": "forwarded", "notification_id": "n", "issuer_response": "x"},
                     {"reason": "mismatch", "retryable": False},
                     {"reason": "busy"},
-                    {"reason": "busy", "retryable": True, "detail": "issuer said no"}):
+                    {"reason": "busy", "retryable": 1}):
             self.assertNotEqual(errors(self.R, bad), [], bad)
+
+    def test_unknown_members_are_ignored_not_refused(self):
+        # Core 9.5 rules 1 and 7: schemas stay open; the text, not the schema, forbids issuer text.
+        self.assertEqual(errors(self.R, {"status": "forwarded", "notification_id": "n", "x_other": 1}), [])
+        self.assertEqual(errors(self.R, {"reason": "busy", "retryable": True, "x_other": 1}), [])
 
     def test_sign_client_auth_result(self):
         self.assertEqual(errors(self.S, {"dpop_proof": "a.b.c", "dpop_key_id": "k1"}), [])
