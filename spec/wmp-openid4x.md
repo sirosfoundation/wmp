@@ -420,9 +420,11 @@ When `consent` is `false` the orchestrator ends the flow as for a user who decli
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `vp_token` | string/string[] | VP token(s) |
+| `vp_token` | string/string[]/object | VP token(s) |
 | `presentation_submission` | object | Presentation submission descriptor |
 | `response_code` | string | Response code from verifier (if applicable) |
+
+`vp_token`, when present, is a non-empty string, a non-empty array of non-empty strings or, for a DCQL request, a non-empty object whose values are non-empty arrays of non-empty strings (`{"<credential query id>": ["<presentation>", ...]}`). A result whose `vp_token` is any other value (for example null, a boolean, a number, an empty string, array or object, an array holding a non-string, an empty string or an array, or an object value that is not an array of non-empty strings) MUST be refused as a malformed result, and the value MUST NOT be logged or echoed.
 
 #### 3.2.5 Presentation Sign Sub-flow
 
