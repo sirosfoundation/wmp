@@ -412,7 +412,10 @@ class IssuerEntitlement(unittest.TestCase):
         ok = {"reason": "untrusted_issuer", "retryable": False}
         self.assertEqual(list(untrusted.iter_errors(ok)), [])
         for bad in ({"reason": "untrusted", "retryable": False}, {"reason": "untrusted_issuer"},
-                    dict(ok, retryable=True)):
+                    dict(ok, retryable=True),
+                    # entitlement findings belong to -31020 (3.1.6), also oversized or with a message
+                    dict(ok, findings=[{"code": "no_access_certificate"}]),
+                    dict(ok, findings=[{"code": "a", "message": "x"}] * 65)):
             self.assertNotEqual(list(untrusted.iter_errors(bad)), [], bad)
         f = {"code": "no_access_certificate"}
         self.assertEqual(list(ne.iter_errors({"retryable": False, "findings": [f]})), [])
@@ -423,6 +426,10 @@ class IssuerEntitlement(unittest.TestCase):
                     {"retryable": False, "findings": [{"code": "a", "message": "x"}]},
                     {"retryable": False, "findings": [f] * 65}):
             self.assertNotEqual(list(ne.iter_errors(bad)), [], bad)
+
+
+class ResolveResponse(unittest.TestCase):
+    """WMP Core 5.8.1: the result carries `metadata`; vctm needs a vct and ignores other members."""
 
     def res(self, **result):
         base = {"wmp": WMP, "type": "vctm", "uri": "https://c.example/id"}

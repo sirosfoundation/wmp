@@ -20,7 +20,8 @@
       "properties": {
         "reason": { "const": "untrusted_issuer" },
         "retryable": { "const": false }
-      }
+      },
+      "not": { "required": ["findings"] }
     },
     "notEntitledData": {
       "type": "object",
