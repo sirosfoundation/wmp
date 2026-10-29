@@ -452,17 +452,22 @@ class CredentialNotification(unittest.TestCase):
         for bad in ({}, {"dpop_proof": ""}, {"dpop_proof": 1}):
             self.assertNotEqual(errors(self.S, bad), [], bad)
 class IssuerEntitlement(unittest.TestCase):
-    """WMP OpenID4x 7.8 and 3.1.6: bounded names and booleans, no free text member."""
+    """WMP OpenID4x 7.8 and 3.1.6: bounded names and booleans, a fixed-text message at most."""
     N = "methods/issuer-entitlement.json"
     BASE = {"issuer_entitlement_evaluated": True, "issuer": "https://i.example",
             "issuer_entitlement": {"allowed": True, "mode": "warn", "evaluated": True,
                                    "findings": [{"code": "not_an_attestation_provider",
+                                                 "message": "The issuer is not a provider.",
                                                  "credential_type": "https://c.example/id"}],
+                                   "findings_truncated": True,
                                    "entitlements": ["urn:x"]}}
 
     def test_ok(self):
         self.assertEqual(errors(self.N, self.BASE), [])
         self.assertEqual(errors(self.N, without(self.BASE, ["issuer_entitlement", "findings"])), [])
+        # an unknown code is opaque, not an error
+        self.assertEqual(errors(self.N, with_(self.BASE, ["issuer_entitlement", "findings"], [{"code": "future_code_2"}])), [])
+        self.assertEqual(errors(self.N, with_(self.BASE, ["issuer_entitlement", "findings"], [{"code": "a"}] * 16)), [])
 
     def test_refused(self):
         ent = ["issuer_entitlement"]
@@ -471,38 +476,53 @@ class IssuerEntitlement(unittest.TestCase):
                      with_(self.BASE, ent + ["mode"], "off"),
                      without(self.BASE, ent + ["allowed"]),
                      with_(self.BASE, ent + ["evaluated"], "no"),
+                     with_(self.BASE, ent + ["findings_truncated"], "yes"),
                      with_(self.BASE, ent + ["findings"], [{"message": "x"}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "Not Snake"}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "no_access_certificate\n"}]),
-                     with_(self.BASE, ent + ["findings"], [{"code": "no_access_certificate", "message": "x"}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "a" * 65}]),
-                     with_(self.BASE, ent + ["findings"], [{"code": "a", "credential_type": "x" * 257}]),
-                     with_(self.BASE, ent + ["findings"], [{"code": "a"}] * 65),
+                     with_(self.BASE, ent + ["findings"], [{"code": "a", "message": "x" * 257}]),
+                     with_(self.BASE, ent + ["findings"], [{"code": "a", "credential_type": "x" * 129}]),
+                     # control, bidi and zero-width characters (7.8: sanitised by the sender)
+                     *[with_(self.BASE, ent + ["findings"], [{"code": "a", "credential_type": "urn:x" + c}])
+                       for c in ("\n", "\x1b", "\u200b", "\ufeff", "\u202e", "\x7f")],
+                     with_(self.BASE, ent + ["findings"], [{"code": "a", "message": "line\nbreak"}]),
+                     with_(self.BASE, ent + ["findings"], [{"code": "a"}] * 17),
                      with_(self.BASE, ent + ["entitlements"], ["x" * 257]),
                      with_(self.BASE, ent + ["entitlements"], ["x"] * 65),
                      with_(self.BASE, ["issuer"], "x" * 2049)):
             self.assertNotEqual(errors(self.N, inst), [], inst)
 
-    def test_refusal_data(self):
-        def val(name):
-            return Draft202012Validator({"$ref": SCHEMAS[self.N]["$id"] + "#/$defs/" + name}, registry=REGISTRY)
-        untrusted, ne = val("refusalData"), val("notEntitledData")
+    def val(self, name):
+        return Draft202012Validator({"$ref": SCHEMAS[self.N]["$id"] + "#/$defs/" + name}, registry=REGISTRY)
+
+    def test_untrusted_refusal_data(self):
+        untrusted = self.val("refusalData")
         ok = {"reason": "untrusted_issuer", "retryable": False}
         self.assertEqual(list(untrusted.iter_errors(ok)), [])
         for bad in ({"reason": "untrusted", "retryable": False}, {"reason": "untrusted_issuer"},
                     dict(ok, retryable=True),
-                    # entitlement findings belong to -31020 (3.1.6), also oversized or with a message
+                    # entitlement findings belong to -31020 (3.1.6)
                     dict(ok, findings=[{"code": "no_access_certificate"}]),
                     dict(ok, findings=[{"code": "a", "message": "x"}] * 65)):
             self.assertNotEqual(list(untrusted.iter_errors(bad)), [], bad)
-        f = {"code": "no_access_certificate"}
-        self.assertEqual(list(ne.iter_errors({"retryable": False, "findings": [f]})), [])
-        for bad in ({"retryable": False}, {"retryable": False, "findings": []},
-                    {"retryable": True, "findings": [f]}, {"findings": [f]},
-                    {"retryable": False, "findings": [{"credential_type": "x"}]},
-                    {"retryable": False, "findings": [{"code": "a\n"}]},
-                    {"retryable": False, "findings": [{"code": "a", "message": "x"}]},
-                    {"retryable": False, "findings": [f] * 65}):
+
+    def test_not_entitled_data(self):
+        ne = self.val("notEntitledData")
+        dec = {"allowed": False, "mode": "fail", "evaluated": True,
+               "findings": [{"code": "no_access_certificate", "message": "m"}]}
+        ok = {"issuer": "https://i.example", "issuer_entitlement": dec}
+        self.assertEqual(list(ne.iter_errors(ok)), [])
+        self.assertEqual(list(ne.iter_errors(dict(ok, retryable=False))), [])
+        for bad in ({"issuer_entitlement": dec}, {"issuer": "i"}, {"issuer": "", "issuer_entitlement": dec},
+                    dict(ok, retryable=True),
+                    dict(ok, issuer_entitlement=dict(dec, allowed=True)),
+                    dict(ok, issuer_entitlement=dict(dec, mode="warn")),
+                    dict(ok, issuer_entitlement=without(dec, ["findings"])),
+                    dict(ok, issuer_entitlement=dict(dec, findings=[])),
+                    dict(ok, issuer_entitlement=dict(dec, findings=[{"code": "a\n"}])),
+                    dict(ok, issuer_entitlement=dict(dec, findings=[{"code": "a"}] * 17)),
+                    dict(ok, issuer_entitlement=without(dec, ["evaluated"]))):
             self.assertNotEqual(list(ne.iter_errors(bad)), [], bad)
 
 
