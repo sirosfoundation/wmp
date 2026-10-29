@@ -384,6 +384,7 @@ class CredentialNotification(unittest.TestCase):
     def test_params_ok(self):
         self.assertEqual(errors(self.P, self.BASE), [])
         self.assertEqual(errors(self.P, with_(self.BASE, ["event_description"], "stored ok")), [])
+        self.assertEqual(errors(self.P, with_(self.BASE, ["event"], "credential_failure")), [])
         # Members not listed are ignored (Core 9.5).
         self.assertEqual(errors(self.P, with_(self.BASE, ["x_other"], 1)), [])
 
@@ -391,7 +392,7 @@ class CredentialNotification(unittest.TestCase):
         for path in (["issuance_flow_id"], ["notification_id"], ["event"]):
             self.assertNotEqual(errors(self.P, without(self.BASE, path)), [], path)
         for path, v in ((["issuance_flow_id"], ""), (["notification_id"], "x" * 257),
-                        (["event"], 7), (["event_description"], "x" * 513),
+                        (["event"], 7), (["event"], "credential_deleted"), (["event"], ""), (["event_description"], "x" * 513),
                         (["event_description"], "caf\u00e9"), (["event_description"], "a\nb"),
                         (["event_description"], "stored ok\n")):
             self.assertNotEqual(errors(self.P, with_(self.BASE, path, v)), [], (path, v))

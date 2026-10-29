@@ -164,8 +164,7 @@ class CredentialNotificationVectors(unittest.TestCase):
             if msg.get("method") == "wmp.flow.start" and p.get("flow_type") == "credential_notification":
                 if "expected_error" not in v or v["expected_error"]["error"]["code"] != -32602:
                     self.assertEqual(list(params.iter_errors(p["params"])), [], v["id"])
-                elif v["expected_error"]["error"]["data"]["member"] != "event":
-                    # an event the orchestrator does not offer is schema-valid: offering is its choice
+                else:
                     self.assertNotEqual(list(params.iter_errors(p["params"])), [], v["id"])
             if msg.get("method") == "wmp.flow.complete" and "status" in p["result"]:
                 self.assertEqual(list(result.iter_errors(p["result"])), [], v["id"])
