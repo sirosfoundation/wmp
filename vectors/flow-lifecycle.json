@@ -824,6 +824,362 @@
     "notes": "A value that is not a compact JWE is refused: the flow fails and the verifier is answered access_denied with no detail."
   },
   {
+    "id": "flow-sign-result-vp-token-string",
+    "description": "Sign result of sign_presentation: vp_token is a string.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": "eyJ0ZXN0"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.2.4: an accepted vp_token form."
+  },
+  {
+    "id": "flow-sign-result-vp-token-string-array",
+    "description": "Sign result of sign_presentation: vp_token is an array of strings.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": [
+            "eyJ0ZXN0",
+            "eyJ0ZXN1"
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.2.4: an accepted vp_token form."
+  },
+  {
+    "id": "flow-sign-result-vp-token-dcql-object",
+    "description": "Sign result of sign_presentation: vp_token is a DCQL object of query id to array of presentations.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": {
+            "pid": [
+              "eyJ0ZXN0"
+            ],
+            "mdl": [
+              "eyJ0ZXN1",
+              "eyJ0ZXN2"
+            ]
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.2.4: an accepted vp_token form."
+  },
+  {
+    "id": "flow-sign-result-vp-token-boolean-refused",
+    "description": "Negative: vp_token is a boolean.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": true
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-number-refused",
+    "description": "Negative: vp_token is a number.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": 123
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-null-refused",
+    "description": "Negative: vp_token is null.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": null
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-empty-string-refused",
+    "description": "Negative: vp_token is the empty string.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": ""
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-empty-array-refused",
+    "description": "Negative: vp_token is an empty array.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": []
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-array-non-string-entry-refused",
+    "description": "Negative: vp_token is an array with a non-string entry.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": [
+            "eyJ0ZXN0",
+            1
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-array-empty-entry-refused",
+    "description": "Negative: vp_token is an array with an empty-string entry.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": [
+            "eyJ0ZXN0",
+            ""
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-empty-object-refused",
+    "description": "Negative: vp_token is an empty object.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": {}
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-object-empty-array-refused",
+    "description": "Negative: vp_token is an object with an empty array value.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": {
+            "pid": []
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-object-non-array-value-refused",
+    "description": "Negative: vp_token is an object with a string value instead of an array.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": {
+            "pid": "eyJ0ZXN0"
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-object-array-non-string-refused",
+    "description": "Negative: vp_token is an object whose array holds a non-string.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": {
+            "pid": [
+              1
+            ]
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
+    "id": "flow-sign-result-vp-token-nested-array-refused",
+    "description": "Negative: vp_token is an array that contains an array.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-sign",
+        "result": {
+          "vp_token": [
+            [
+              "eyJ0ZXN0"
+            ]
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "must_refuse": true,
+    "notes": "openid4x Section 3.2.4: a sign result whose vp_token is not a non-empty string, a non-empty array of non-empty strings, or a non-empty object of non-empty arrays of non-empty strings is refused; the value is not logged or echoed."
+  },
+  {
     "id": "flow-oid4vp-transaction-data-unsupported",
     "description": "A wallet that did not offer transaction_data: the OID4VP flow ends -31005 with unsupported and the additive redirect_uri.",
     "conformance_level": "flows",

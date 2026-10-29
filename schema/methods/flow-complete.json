@@ -29,6 +29,12 @@
             "interval": { "type": "integer", "minimum": 0, "description": "Sign flows (decrypt_credential_response): optional polling interval in seconds, with transaction_id." },
             "credential_count": { "type": "integer", "minimum": 1, "maximum": 256, "description": "Sign flows (decrypt_credential_response): the number of credentials the decrypted response held. Never together with transaction_id." },
             "response_jwe": { "type": "string", "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$", "maxLength": 4194304, "description": "Sign flows (sign_presentation, response_mode direct_post.jwt): the finished compact JWE the orchestrator relays to the verifier unread. Five base64url segments; only the encrypted key of a direct ECDH-ES agreement may be empty. Never together with vp_token." },
+            "vp_token": { "description": "Sign flows (sign_presentation) and OpenID4VP completions: a non-empty string, a non-empty array of non-empty strings or, for a DCQL request, a non-empty object whose values are non-empty arrays of non-empty strings (openid4x 3.2.4). Any other value is refused.",
+              "oneOf": [
+                { "type": "string", "minLength": 1 },
+                { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+                { "type": "object", "minProperties": 1, "additionalProperties": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } } }
+              ] },
             "satisfiable": { "type": "boolean", "description": "match flows: true if the wallet can satisfy the verifier's DCQL query. Presence of this member makes the result a match result, a closed set (openid4x 3.3.2, 3.3.3)." },
             "satisfiable_query_ids": { "type": "array", "items": { "type": "string" }, "uniqueItems": true, "description": "match flows: ids of the verifier's own credential queries the wallet can satisfy. That each is an id of the query is checked by the orchestrator, which holds the query." },
             "selection_handle": { "type": "string", "minLength": 22, "pattern": "^([A-Za-z0-9_-]{4})*([A-Za-z0-9_-]{2,3})?$", "not": { "pattern": "\\n$" }, "description": "match flows: opaque per-flow wallet-chosen handle, at least 128 bits, base64url." },
