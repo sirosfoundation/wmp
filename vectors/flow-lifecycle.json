@@ -1492,6 +1492,353 @@
     "notes": "openid4x 3.1.4.2: redacted_members lists exactly the secret members that were omitted, alphabetically, once each, and is absent when nothing was omitted. A client refuses a replayed completion that breaks this."
   },
   {
+    "id": "flow-match-result-claim-values-refused",
+    "description": "A match result carrying a claim value.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "satisfiable_query_ids": [
+            "pid"
+          ],
+          "claims": {
+            "family_name": "Svensson"
+          }
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-claim-names-refused",
+    "description": "A match result listing the claim names a credential has.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "satisfiable_query_ids": [
+            "pid"
+          ],
+          "available_claims": [
+            "family_name",
+            "given_name",
+            "birth_date"
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-disclosures-refused",
+    "description": "A match result carrying SD-JWT disclosures.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "satisfiable_query_ids": [
+            "pid"
+          ],
+          "disclosures": [
+            "WyJzYWx0IiwiZmFtaWx5X25hbWUiLCJTdmVuc3NvbiJd"
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-credential-body-refused",
+    "description": "A match result carrying a credential.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "satisfiable_query_ids": [
+            "pid"
+          ],
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJhbGciOiJFUzI1NiJ9.e30.c2ln~"
+            }
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-matches-with-credential-id-vct-format-refused",
+    "description": "The legacy matches[] shape: credential_id, vct and format per match.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "matches": [
+            {
+              "credential_query_id": "pid",
+              "credential_id": "cred-9f2a",
+              "vct": "urn:eudi:pid:1",
+              "format": "dc+sd-jwt"
+            }
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-top-level-credential-id-vct-format-refused",
+    "description": "credential_id, vct and format as members of the result.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "satisfiable_query_ids": [
+            "pid"
+          ],
+          "credential_id": "cred-9f2a",
+          "vct": "urn:eudi:pid:1",
+          "format": "dc+sd-jwt"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-issuer-detail-refused",
+    "description": "The issuer of the matched credential.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "satisfiable_query_ids": [
+            "pid"
+          ],
+          "issuer": "https://pid-issuer.example.eu"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-free-text-reason-refused",
+    "description": "A free-text reason member.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": false,
+          "code": "no_match",
+          "no_match_reason": "No credential of type urn:eudi:pid:1 for Svensson"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-free-text-code-refused",
+    "description": "code is not one of the listed values (free text in the enum member).",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": false,
+          "code": "no PID credential found"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-code-with-satisfiable-true-refused",
+    "description": "code present although satisfiable is true.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "code": "insufficient"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-missing-code-when-unsatisfiable-refused",
+    "description": "satisfiable is false and code is absent.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": false
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-query-ids-not-strings-refused",
+    "description": "satisfiable_query_ids elements are objects.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "satisfiable_query_ids": [
+            {
+              "id": "pid",
+              "vct": "urn:eudi:pid:1"
+            }
+          ]
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
+    "id": "flow-match-result-unknown-extension-member-refused",
+    "description": "Any member outside the closed set, however harmless-looking.",
+    "conformance_level": "flows",
+    "must_refuse": true,
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vp-001-match",
+        "result": {
+          "satisfiable": true,
+          "satisfiable_query_ids": [
+            "pid"
+          ],
+          "wallet_version": "1.2.3"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "openid4x Section 3.3.3: the orchestrator refuses this result: it ends the parent oid4vp flow with wmp.flow.error -32602 and does not log or store the offending members."
+  },
+  {
     "id": "flow-select-credentials-consent",
     "description": "select_credentials: the user consents; one selection names the verifier's query id and the match handle.",
     "conformance_level": "flows",
