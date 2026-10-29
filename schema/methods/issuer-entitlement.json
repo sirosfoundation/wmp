@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/leifj/wmp/schema/methods/issuer-entitlement.json",
+  "title": "oid4vci trust_evaluated payload with an issuer entitlement result",
+  "description": "The payload of a wmp.flow.progress step trust_evaluated that carries issuer_entitlement_evaluated true (WMP OpenID4x 7.8), and the data of the wmp.flow.error that refuses an unentitled issuer (3.1.6) via #/$defs/refusalData.",
+  "$defs": {
+    "finding": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64 },
+        "credential_type": { "type": "string", "maxLength": 256 }
+      }
+    },
+    "findings": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/finding" } },
+    "refusalData": {
+      "type": "object",
+      "required": ["reason", "retryable"],
+      "properties": {
+        "reason": { "const": "untrusted_issuer" },
+        "retryable": { "const": false },
+        "findings": { "$ref": "#/$defs/findings" }
+      }
+    }
+  },
+  "type": "object",
+  "required": ["issuer_entitlement_evaluated", "issuer", "issuer_entitlement"],
+  "properties": {
+    "issuer_entitlement_evaluated": { "const": true },
+    "issuer": { "type": "string", "minLength": 1, "maxLength": 2048 },
+    "issuer_entitlement": {
+      "type": "object",
+      "required": ["allowed", "mode", "evaluated"],
+      "properties": {
+        "allowed": { "type": "boolean" },
+        "mode": { "enum": ["warn", "fail"] },
+        "evaluated": { "type": "boolean" },
+        "findings": { "$ref": "#/$defs/findings" },
+        "entitlements": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "type": "string", "maxLength": 256 }
+        }
+      }
+    }
+  }
+}

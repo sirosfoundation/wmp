@@ -373,5 +373,45 @@ class FlowCompleteBlindIssuance(unittest.TestCase):
             self.assertNotEqual(errors("methods/flow-complete.json", res(bad)), [], bad)
 
 
+class IssuerEntitlement(unittest.TestCase):
+    """WMP OpenID4x 7.8 and 3.1.6: bounded names and booleans, no free text member."""
+    N = "methods/issuer-entitlement.json"
+    BASE = {"issuer_entitlement_evaluated": True, "issuer": "https://i.example",
+            "issuer_entitlement": {"allowed": True, "mode": "warn", "evaluated": True,
+                                   "findings": [{"code": "not_an_attestation_provider",
+                                                 "credential_type": "https://c.example/id"}],
+                                   "entitlements": ["urn:x"]}}
+
+    def test_ok(self):
+        self.assertEqual(errors(self.N, self.BASE), [])
+        self.assertEqual(errors(self.N, without(self.BASE, ["issuer_entitlement", "findings"])), [])
+
+    def test_refused(self):
+        ent = ["issuer_entitlement"]
+        for inst in (without(self.BASE, ["issuer"]),
+                     with_(self.BASE, ["issuer_entitlement_evaluated"], False),
+                     with_(self.BASE, ent + ["mode"], "off"),
+                     without(self.BASE, ent + ["allowed"]),
+                     with_(self.BASE, ent + ["evaluated"], "no"),
+                     with_(self.BASE, ent + ["findings"], [{"message": "x"}]),
+                     with_(self.BASE, ent + ["findings"], [{"code": "Not Snake"}]),
+                     with_(self.BASE, ent + ["findings"], [{"code": "a" * 65}]),
+                     with_(self.BASE, ent + ["findings"], [{"code": "a", "credential_type": "x" * 257}]),
+                     with_(self.BASE, ent + ["findings"], [{"code": "a"}] * 65),
+                     with_(self.BASE, ent + ["entitlements"], ["x" * 257]),
+                     with_(self.BASE, ent + ["entitlements"], ["x"] * 65),
+                     with_(self.BASE, ["issuer"], "x" * 2049)):
+            self.assertNotEqual(errors(self.N, inst), [], inst)
+
+    def test_refusal_data(self):
+        v = Draft202012Validator({"$ref": SCHEMAS[self.N]["$id"] + "#/$defs/refusalData"}, registry=REGISTRY)
+        ok = {"reason": "untrusted_issuer", "retryable": False}
+        self.assertEqual(list(v.iter_errors(ok)), [])
+        self.assertEqual(list(v.iter_errors(dict(ok, findings=[{"code": "no_access_certificate"}]))), [])
+        for bad in ({"reason": "untrusted", "retryable": False}, {"reason": "untrusted_issuer"},
+                    dict(ok, retryable=True), dict(ok, findings=[{"credential_type": "x"}])):
+            self.assertNotEqual(list(v.iter_errors(bad)), [], bad)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

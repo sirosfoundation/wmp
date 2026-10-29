@@ -2947,5 +2947,125 @@
     },
     "must_refuse": true,
     "notes": "The id check covers the whole string. A conforming orchestrator refuses it by answering the action request with a correlated JSON-RPC error -32602 without data, and ending the parent oid4vp flow with a terminal wmp.flow.error code -32602 whose data echoes nothing of the params; it reports access_denied to the verifier and does not log, store or forward the offending members."
+  },
+  {
+    "id": "flow-vci-issuer-entitlement-warn",
+    "description": "trust_evaluated progress with issuer entitlement findings in warn mode (OpenID4x 7.8).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.progress",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "step": "trust_evaluated",
+        "payload": {
+          "issuer_entitlement_evaluated": true,
+          "issuer": "https://issuer.example.com",
+          "issuer_entitlement": {
+            "allowed": true,
+            "mode": "warn",
+            "evaluated": true,
+            "findings": [
+              {
+                "code": "attestation_type_not_registered",
+                "credential_type": "https://credentials.example.com/identity"
+              }
+            ],
+            "entitlements": [
+              "https://uri.etsi.org/19475/Entitlement/Service_Provider"
+            ]
+          }
+        }
+      }
+    },
+    "notes": "The flow continues; the wallet SHOULD show the findings. No free text in a finding."
+  },
+  {
+    "id": "flow-vci-issuer-entitlement-fail",
+    "description": "trust_evaluated progress with findings in fail mode, sent before the refusal.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.progress",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "step": "trust_evaluated",
+        "payload": {
+          "issuer_entitlement_evaluated": true,
+          "issuer": "https://issuer.example.com",
+          "issuer_entitlement": {
+            "allowed": false,
+            "mode": "fail",
+            "evaluated": false,
+            "findings": [
+              {
+                "code": "no_access_certificate"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "notes": "evaluated false: nothing to evaluate against is not an acceptable result."
+  },
+  {
+    "id": "flow-vci-refused-untrusted-issuer",
+    "description": "The oid4vci flow ends with -31006 reason untrusted_issuer, carrying the findings (OpenID4x 3.1.6).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "code": -31006,
+        "message": "Flow error",
+        "data": {
+          "reason": "untrusted_issuer",
+          "retryable": false,
+          "findings": [
+            {
+              "code": "attestation_type_not_registered",
+              "credential_type": "https://credentials.example.com/identity"
+            }
+          ]
+        }
+      }
+    },
+    "notes": "message is the fixed text of the code; nothing taken from the issuer."
+  },
+  {
+    "id": "flow-vci-refused-untrusted-issuer-no-findings",
+    "description": "Refusal for an untrusted issuer with no entitlement findings (the trust decision itself).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "code": -31006,
+        "message": "Flow error",
+        "data": {
+          "reason": "untrusted_issuer",
+          "retryable": false
+        }
+      }
+    },
+    "notes": "findings is omitted."
   }
 ]
