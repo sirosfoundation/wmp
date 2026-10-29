@@ -1414,7 +1414,7 @@ The `resolve` capability MUST be negotiated during session creation to use resol
 
 **Response:**
 
-The result carries the resolved document as an opaque `body` alongside a `content_type`, making the format extensible to any metadata representation. For `vctm` resolution the body MUST be the full Verifiable Credential Type Metadata document as defined in [SD-JWT VC Type Metadata](https://www.ietf.org/archive/id/draft-ietf-oauth-sd-jwt-vc-06.html#section-6):
+The result carries the resolved document in `metadata`, a JSON value whose format depends on the resolution `type`. For `vctm` resolution `metadata` is a JSON object, the Verifiable Credential Type Metadata of the requested type as defined in [SD-JWT VC Type Metadata](https://www.ietf.org/archive/id/draft-ietf-oauth-sd-jwt-vc-06.html#section-6), reduced to the members the wallet displays (see "`vctm` resolution" below). The result has no separate content-type member: the `type` fixes the format.
 
 ```json
 {
@@ -1424,8 +1424,7 @@ The result carries the resolved document as an opaque `body` alongside a `conten
     "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
     "type": "vctm",
     "uri": "https://credentials.example.com/identity",
-    "content_type": "application/vctm+json",
-    "body": {
+    "metadata": {
       "vct": "https://credentials.example.com/identity",
       "name": "National ID Card",
       "description": "Government-issued identity credential",
@@ -1468,8 +1467,7 @@ The result carries the resolved document as an opaque `body` alongside a `conten
 |-------|------|----------|-------------|
 | `type` | string | REQUIRED | Echoed resolution type |
 | `uri` | string | REQUIRED | Echoed identifier/URI |
-| `content_type` | string | REQUIRED | Media type of `body` (e.g. `application/vctm+json`) |
-| `body` | object/string | REQUIRED | The resolved metadata document. `null` if not found. |
+| `metadata` | any JSON value | REQUIRED | The resolved metadata. `null` if the resolver determined that the identifier is unknown (see "`vctm` resolution" for when an error is used instead). |
 | `trust_info` | object | OPTIONAL | Trust evaluation for the resolved entity |
 
 **Standard resolution types:**
@@ -1483,6 +1481,15 @@ The result carries the resolved document as an opaque `body` alongside a `conten
 | `openid_federation` | Entity ID URL | OpenID Federation entity configuration and trust chain |
 
 Profiles MAY define additional resolution types. For example, the eDelivery profile ([wmp-edelivery.md](wmp-edelivery.md)) adds `smp` for SMP/BDXL participant lookups.
+
+**`vctm` resolution.** The `uri` is a Verifiable Credential Type identifier (`vct`). This is the lookup a wallet backend performs for the type metadata it would otherwise deliver with an issued credential, and a conforming orchestrator answers with the same document:
+
+- Lookup order. The orchestrator first asks its type metadata registry for the `vct`. If the registry has no entry or cannot be reached, and `uri` is an absolute URL, it fetches that URL (`Accept: application/json`). Any other outcome of the registry lookup (an error status, an unparseable document) is a failed lookup; it does not fall through to the URL.
+- Shape. `metadata` is a JSON object that always has `vct` (when the document found does not carry one, the orchestrator sets it to `uri`). It MAY have `name`, `description`, `display`, `claims` and `schema`, each carried verbatim from the document (Section 9.5 rule 4), and carries no other member of that document. A wallet needing other members (for example `extends` or `svg_templates`) resolves them from the `vct` itself.
+- Failure. A lookup that finds no document, cannot reach one, or finds one that is not a JSON object is answered with error `-32603` (Internal error) and `data` `{"reason": "metadata_fetch_error"}`. A registry miss followed by a failed URL fetch is such a failure: an orchestrator that cannot tell "unknown" from "unreachable" MUST use the error, not `null`. `metadata: null` is reserved for an orchestrator that knows the type is unknown. A `uri` that is empty is answered `-32602`.
+- Egress. The orchestrator MUST NOT fetch a `uri` that resolves to a loopback, private, link-local or cloud-metadata address, or that is not HTTPS, unless it is configured for local development, and MUST apply the same policy to every redirect. It SHOULD bound the time (10 seconds in go-wallet-backend) and the size of the lookup.
+- `trust_info`, `options`. An orchestrator that does not evaluate trust for type metadata omits `trust_info`; the member is advisory display information, never an authorization. `options` is not defined for `vctm` and is ignored.
+- Caching is a matter for the orchestrator and wallet; the result carries no cache directive.
 
 #### 5.8.2 Resolve Capability Parameters
 
@@ -1514,7 +1521,7 @@ Resolution failures use standard WMP error responses:
 }
 ```
 
-A resolution that succeeds but finds no metadata returns a result with `body: null`.
+A resolution that succeeds but finds no metadata returns a result with `metadata: null` (see "`vctm` resolution" in Section 5.8.1 for when `vctm` uses an error instead).
 
 ## 6. Structured Flows
 
