@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/leifj/wmp/schema/methods/sign-client-auth-result.json",
+  "title": "sign_client_auth \u2014 result for a DPoP proof",
+  "description": "The result member of the wmp.flow.complete of a sign sub-flow with action sign_client_auth that asked for a DPoP proof (htm and htu present), WMP OpenID4x 3.4.3. Members for a client attestation answer are not specified here and are allowed.",
+  "type": "object",
+  "required": [
+    "dpop_proof"
+  ],
+  "properties": {
+    "dpop_proof": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The DPoP proof JWT. A dpop_key_id is not part of this result (OpenID4x 3.4.3)."
+    }
+  },
+  "not": {
+    "required": [
+      "dpop_key_id"
+    ]
+  }
+}

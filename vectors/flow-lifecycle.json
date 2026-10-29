@@ -3072,5 +3072,365 @@
       }
     },
     "notes": "data repeats the issuer and the decision of the progress; allowed is false, mode fail, at least one finding."
+  },
+  {
+    "id": "flow-credential-notification-start",
+    "description": "Wallet starts a credential_notification flow after the oid4vci flow flow-vci-001 completed (OpenID4x 3.4.1).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "cn-001",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_type": "credential_notification",
+        "flow_id": "flow-cn-001",
+        "params": {
+          "issuance_flow_id": "flow-vci-001",
+          "notification_id": "nid-77",
+          "event": "credential_accepted"
+        }
+      }
+    },
+    "notes": "The orchestrator validates params, finds the retained context and runs the flow. Requires the credential_notification capability."
+  },
+  {
+    "id": "flow-credential-notification-sign-client-auth",
+    "description": "Orchestrator asks the wallet for the DPoP proof of the notification request with a sign sub-flow of the notification flow (OpenID4x 3.4.3).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "cn-sign-1",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_type": "sign",
+        "flow_id": "flow-cn-001-sign-1",
+        "params": {
+          "action": "sign_client_auth",
+          "parent_flow_id": "flow-cn-001",
+          "htm": "POST",
+          "htu": "https://issuer.example.com/notification",
+          "ath": "fUHyO2r2Z3DZ53EsNrWBb0xWXoaNy59IiKCAqksmQEo",
+          "dpop_nonce": "srv-nonce-1"
+        }
+      }
+    },
+    "notes": "The wallet completes with a non-empty dpop_proof. It refuses a sign_client_auth whose parent_flow_id is not a credential_notification flow it started."
+  },
+  {
+    "id": "flow-credential-notification-complete",
+    "description": "Terminal result of a forwarded notification.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-cn-001",
+        "result": {
+          "status": "forwarded",
+          "notification_id": "nid-77"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "A notification: no response."
+  },
+  {
+    "id": "flow-credential-notification-error-context-unavailable",
+    "description": "Terminal error of a credential_notification flow: context_unavailable.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-cn-001",
+        "code": -31006,
+        "message": "Flow error",
+        "data": {
+          "reason": "context_unavailable",
+          "retryable": false
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "No issuer or wallet text in message or data."
+  },
+  {
+    "id": "flow-credential-notification-error-busy",
+    "description": "Terminal error of a credential_notification flow: busy.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-cn-001",
+        "code": -31006,
+        "message": "Flow error",
+        "data": {
+          "reason": "busy",
+          "retryable": true
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "No issuer or wallet text in message or data."
+  },
+  {
+    "id": "flow-credential-notification-error-signing-failed",
+    "description": "Terminal error of a credential_notification flow: signing_failed.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-cn-001",
+        "code": -31006,
+        "message": "Flow error",
+        "data": {
+          "reason": "signing_failed",
+          "retryable": false
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "No issuer or wallet text in message or data."
+  },
+  {
+    "id": "flow-credential-notification-error-forward-failed",
+    "description": "Terminal error of a credential_notification flow: forward_failed.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-cn-001",
+        "code": -31006,
+        "message": "Flow error",
+        "data": {
+          "reason": "forward_failed",
+          "retryable": false
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "No issuer or wallet text in message or data."
+  },
+  {
+    "id": "flow-credential-notification-invalid-event",
+    "description": "A start whose event the orchestrator does not offer is refused with -32602 naming the member.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "cn-002",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_type": "credential_notification",
+        "flow_id": "flow-cn-002",
+        "params": {
+          "issuance_flow_id": "flow-vci-001",
+          "notification_id": "nid-77",
+          "event": "credential_deleted"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "cn-002",
+      "error": {
+        "code": -32602,
+        "message": "Invalid params",
+        "data": {
+          "member": "event"
+        }
+      }
+    },
+    "notes": "data names the member and echoes no value."
+  },
+  {
+    "id": "flow-credential-notification-missing-notification-id",
+    "description": "A start without notification_id is refused with -32602.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "cn-003",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_type": "credential_notification",
+        "flow_id": "flow-cn-003",
+        "params": {
+          "issuance_flow_id": "flow-vci-001",
+          "event": "credential_accepted"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "cn-003",
+      "error": {
+        "code": -32602,
+        "message": "Invalid params",
+        "data": {
+          "member": "notification_id"
+        }
+      }
+    },
+    "notes": "data names the member."
+  },
+  {
+    "id": "flow-credential-notification-unsupported",
+    "description": "A start in a session that did not negotiate credential_notification is -31005.",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "id": "cn-004",
+      "method": "wmp.flow.start",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_type": "credential_notification",
+        "flow_id": "flow-cn-004",
+        "params": {
+          "issuance_flow_id": "flow-vci-001",
+          "notification_id": "nid-77",
+          "event": "credential_accepted"
+        }
+      }
+    },
+    "expected_error": {
+      "jsonrpc": "2.0",
+      "id": "cn-004",
+      "error": {
+        "code": -31005,
+        "message": "Capability not supported",
+        "data": {
+          "unsupported": "credential_notification"
+        }
+      }
+    },
+    "notes": "Core 3.8.1."
+  },
+  {
+    "id": "flow-credential-notification-issuance-completion",
+    "description": "A plain oid4vci completion carries the issuer's notification_id per credential and the notification endpoint the wallet records (OpenID4x 3.1.4, 3.4.3).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-001",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJ...",
+              "vct": "https://credentials.example.com/identity",
+              "notification_id": "nid-77"
+            }
+          ],
+          "notification_endpoint": "https://issuer.example.com/notification?tenant=a"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "The wallet records notification_endpoint and signs its form without query and fragment (https://issuer.example.com/notification) as htu, as in flow-credential-notification-sign-client-auth."
+  },
+  {
+    "id": "flow-credential-notification-issuance-completion-two-responses",
+    "description": "A completion of an issuance with two Credential Responses carries each response's notification_id; each id is notified once (OpenID4x 3.4.2).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.complete",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-vci-002",
+        "result": {
+          "credentials": [
+            {
+              "format": "dc+sd-jwt",
+              "credential": "eyJ...a",
+              "vct": "https://credentials.example.com/identity",
+              "notification_id": "nid-a"
+            },
+            {
+              "format": "mso_mdoc",
+              "credential": "o2dkb...",
+              "notification_id": "nid-b"
+            }
+          ],
+          "notification_endpoint": "https://issuer.example.com/notification"
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "Two notification flows, one per id, are accepted; a second flow for nid-a finds nothing (context_unavailable)."
+  },
+  {
+    "id": "flow-credential-notification-error-timeout",
+    "description": "Terminal error of a credential_notification flow whose own timeout expired (Core 6.2, OpenID4x 3.4.2).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-cn-001",
+        "code": -31006,
+        "message": "Flow error",
+        "data": {
+          "reason": "timeout",
+          "retryable": false
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "The reason Core requires when the wmp.flow.start timeout expires, for example during signing or forwarding."
   }
 ]
