@@ -452,7 +452,9 @@ class CredentialNotification(unittest.TestCase):
         self.assertNotEqual(errors("methods/flow-complete.json", self.completion(**bad)), [])
 
     def test_sign_client_auth_result(self):
-        self.assertEqual(errors(self.S, {"dpop_proof": "a.b.c", "dpop_key_id": "k1"}), [])
+        self.assertEqual(errors(self.S, {"dpop_proof": "a.b.c"}), [])
+        # the key id is a secret withheld from replays (3.1.4.2): not part of the result
+        self.assertNotEqual(errors(self.S, {"dpop_proof": "a.b.c", "dpop_key_id": "k1"}), [])
         for bad in ({}, {"dpop_proof": ""}, {"dpop_proof": 1}):
             self.assertNotEqual(errors(self.S, bad), [], bad)
 class IssuerEntitlement(unittest.TestCase):
