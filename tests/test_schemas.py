@@ -395,6 +395,8 @@ class IssuerEntitlement(unittest.TestCase):
                      with_(self.BASE, ent + ["evaluated"], "no"),
                      with_(self.BASE, ent + ["findings"], [{"message": "x"}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "Not Snake"}]),
+                     with_(self.BASE, ent + ["findings"], [{"code": "no_access_certificate\n"}]),
+                     with_(self.BASE, ent + ["findings"], [{"code": "no_access_certificate", "message": "x"}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "a" * 65}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "a", "credential_type": "x" * 257}]),
                      with_(self.BASE, ent + ["findings"], [{"code": "a"}] * 65),
@@ -409,7 +411,8 @@ class IssuerEntitlement(unittest.TestCase):
         self.assertEqual(list(v.iter_errors(ok)), [])
         self.assertEqual(list(v.iter_errors(dict(ok, findings=[{"code": "no_access_certificate"}]))), [])
         for bad in ({"reason": "untrusted", "retryable": False}, {"reason": "untrusted_issuer"},
-                    dict(ok, retryable=True), dict(ok, findings=[{"credential_type": "x"}])):
+                    dict(ok, retryable=True), dict(ok, findings=[{"credential_type": "x"}]),
+                    dict(ok, findings=[{"code": "a\n"}]), dict(ok, findings=[{"code": "a", "message": "x"}])):
             self.assertNotEqual(list(v.iter_errors(bad)), [], bad)
 
 

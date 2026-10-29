@@ -8,9 +8,10 @@
       "type": "object",
       "required": ["code"],
       "properties": {
-        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64 },
+        "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "maxLength": 64, "not": { "pattern": "\\n$" } },
         "credential_type": { "type": "string", "maxLength": 256 }
-      }
+      },
+      "not": { "required": ["message"] }
     },
     "findings": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/finding" } },
     "refusalData": {
