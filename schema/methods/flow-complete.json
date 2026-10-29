@@ -62,7 +62,7 @@
                 "then": { "required": ["code"] },
                 "else": { "not": { "required": ["code"] } } } },
             { "if": { "required": ["credential_response_encrypted"], "properties": { "credential_response_encrypted": { "const": true } } },
-              "then": { "not": { "required": ["credential_metadata"] }, "properties": { "credentials": { "items": { "not": { "required": ["credential"] } } } } } }
+              "then": { "not": { "required": ["credential_metadata"] }, "properties": { "credentials": { "items": { "not": { "anyOf": [{ "required": ["credential"] }, { "required": ["notification_id"] }] } } } } } }
           ]
         }
       }

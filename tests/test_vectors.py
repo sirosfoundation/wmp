@@ -180,7 +180,9 @@ class CredentialNotificationVectors(unittest.TestCase):
                 self.assertTrue(p["result"]["credentials"][0]["notification_id"], v["id"])
                 self.assertTrue(p["result"]["notification_endpoint"].startswith("https://"), v["id"])
                 ids = [c["notification_id"] for c in p["result"]["credentials"]]
-                self.assertEqual(len(ids), len(set(ids)) if len(ids) > 1 else 1, v["id"])
+                # one id per Credential Response (3.1.4): a batch from one response shares it
+                if v["id"].endswith("-two-responses"):
+                    self.assertEqual(len(set(ids)), 2, v["id"])
             if msg.get("method") == "wmp.flow.error":
                 self.assertEqual(list(error_data.iter_errors(p["data"])), [], v["id"])
             if p.get("params", {}).get("action") == "sign_client_auth":

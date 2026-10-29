@@ -425,6 +425,28 @@ class CredentialNotification(unittest.TestCase):
         self.assertEqual(list(self.defn("result").iter_errors({"status": "forwarded", "notification_id": "n", "x_other": 1})), [])
         self.assertEqual(list(self.defn("errorData").iter_errors({"reason": "busy", "retryable": True, "x_other": 1})), [])
 
+    def completion(self, **result):
+        return {"jsonrpc": "2.0", "method": "wmp.flow.complete",
+                "params": {"wmp": WMP, "flow_id": "f1", "result": result}}
+
+    def test_completion_notification_members(self):
+        plain = {"credentials": [{"format": "dc+sd-jwt", "credential": "x", "notification_id": "n"},
+                                 {"format": "dc+sd-jwt", "credential": "y", "notification_id": "n"}],
+                 "notification_endpoint": "https://i.example/notification?t=a"}
+        self.assertEqual(errors("methods/flow-complete.json", self.completion(**plain)), [])
+        for bad in (dict(plain, notification_endpoint=""), dict(plain, notification_endpoint="x" * 2049),
+                    {"credentials": [{"credential": "x", "notification_id": ""}]},
+                    {"credentials": [{"credential": "x", "notification_id": "n" * 257}]}):
+            self.assertNotEqual(errors("methods/flow-complete.json", self.completion(**bad)), [], bad)
+
+    def test_encrypted_completion_has_no_notification_id(self):
+        # 3.1.4: the orchestrator never sees the id of an encrypted response
+        enc = {"credential_response_encrypted": True, "credentials": [{"format": "dc+sd-jwt"}],
+               "notification_endpoint": "https://i.example/notification"}
+        self.assertEqual(errors("methods/flow-complete.json", self.completion(**enc)), [])
+        bad = dict(enc, credentials=[{"format": "dc+sd-jwt", "notification_id": "n"}])
+        self.assertNotEqual(errors("methods/flow-complete.json", self.completion(**bad)), [])
+
     def test_sign_client_auth_result(self):
         self.assertEqual(errors(self.S, {"dpop_proof": "a.b.c", "dpop_key_id": "k1"}), [])
         for bad in ({}, {"dpop_proof": ""}, {"dpop_proof": 1}):
