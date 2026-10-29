@@ -462,16 +462,30 @@ class IssuerEntitlement(unittest.TestCase):
             self.assertNotEqual(errors(self.N, inst), [], inst)
 
     def test_refusal_data(self):
-        v = Draft202012Validator({"$ref": SCHEMAS[self.N]["$id"] + "#/$defs/refusalData"}, registry=REGISTRY)
+        def val(name):
+            return Draft202012Validator({"$ref": SCHEMAS[self.N]["$id"] + "#/$defs/" + name}, registry=REGISTRY)
+        untrusted, ne = val("refusalData"), val("notEntitledData")
         ok = {"reason": "untrusted_issuer", "retryable": False}
-        self.assertEqual(list(v.iter_errors(ok)), [])
-        self.assertEqual(list(v.iter_errors(dict(ok, findings=[{"code": "no_access_certificate"}]))), [])
+        self.assertEqual(list(untrusted.iter_errors(ok)), [])
         for bad in ({"reason": "untrusted", "retryable": False}, {"reason": "untrusted_issuer"},
-                    dict(ok, retryable=True), dict(ok, findings=[{"credential_type": "x"}]),
-                    dict(ok, findings=[{"code": "a\n"}]), dict(ok, findings=[{"code": "a", "message": "x"}])):
-            self.assertNotEqual(list(v.iter_errors(bad)), [], bad)
+                    dict(ok, retryable=True),
+                    # entitlement findings belong to -31020 (3.1.6), also oversized or with a message
+                    dict(ok, findings=[{"code": "no_access_certificate"}]),
+                    dict(ok, findings=[{"code": "a", "message": "x"}] * 65)):
+            self.assertNotEqual(list(untrusted.iter_errors(bad)), [], bad)
+        f = {"code": "no_access_certificate"}
+        self.assertEqual(list(ne.iter_errors({"retryable": False, "findings": [f]})), [])
+        for bad in ({"retryable": False}, {"retryable": False, "findings": []},
+                    {"retryable": True, "findings": [f]}, {"findings": [f]},
+                    {"retryable": False, "findings": [{"credential_type": "x"}]},
+                    {"retryable": False, "findings": [{"code": "a\n"}]},
+                    {"retryable": False, "findings": [{"code": "a", "message": "x"}]},
+                    {"retryable": False, "findings": [f] * 65}):
+            self.assertNotEqual(list(ne.iter_errors(bad)), [], bad)
+
+
 class ResolveResponse(unittest.TestCase):
-    """WMP Core 5.8.1: the result carries `metadata`; vctm is a closed projection."""
+    """WMP Core 5.8.1: the result carries `metadata`; vctm needs a vct and ignores other members."""
 
     def res(self, **result):
         base = {"wmp": WMP, "type": "vctm", "uri": "https://c.example/id"}

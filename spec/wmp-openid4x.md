@@ -333,7 +333,13 @@ The client decrypts, keeps the credentials and the response-level `credential_me
 
 #### 3.1.6 Refusing an Untrusted or Unentitled Issuer
 
-When the orchestrator refuses to continue an `oid4vci` flow because the issuer is not trusted, or is not registered to issue what the offer proposes (Section 7.8), it ends the flow with a terminal `wmp.flow.error`, code `-31006` and `data` `{"reason": "untrusted_issuer", "retryable": false}`. For a refusal because of entitlement findings `data` also carries `findings`, the same array as `issuer_entitlement.findings` of Section 7.8, so that a wallet that did not see the progress message still has the reasons. `message` is the fixed text of the code (`Flow error`) and carries nothing taken from the issuer. A wallet MUST NOT start the issuance again on its own after this error.
+Two refusals end an `oid4vci` flow before the offer is shown, each with a terminal `wmp.flow.error` on the flow. They are different errors because they mean different things to the wallet: one says who the issuer is, the other what it may issue.
+
+**Untrusted issuer** (the trust decision): code `-31006` and `data` `{"reason": "untrusted_issuer", "retryable": false}`. `message` is the fixed text of the code (`Flow error`).
+
+**Issuer not entitled** (Section 7.8: the issuer is not registered to issue what the offer proposes, ARF 6.6.2.3): code `-31020` (Issuer not entitled, WMP Core Section 3.8), `message` the fixed text `Issuer not entitled`, and `data` `{"retryable": false, "findings": [...]}`. `findings` is REQUIRED, has 1 to 64 entries and is the same array as `issuer_entitlement.findings` of Section 7.8: short machine-readable entries (`code`, optional `credential_type`) and no free text. An orchestrator uses `-31020` for every refusal that rests on an entitlement finding (in `fail` mode) and `-31006` `untrusted_issuer` only for the trust decision; it never sends both for one flow.
+
+Neither error carries anything taken from the issuer beyond the bounded identifiers of a finding. A wallet MUST NOT start the issuance again on its own after either error, and shows its own text for the code and the finding codes.
 
 ```json
 {
@@ -342,10 +348,9 @@ When the orchestrator refuses to continue an `oid4vci` flow because the issuer i
   "params": {
     "wmp": {"version": "0.1", "session_id": "ses-a1b2c3d4"},
     "flow_id": "flow-vci-001",
-    "code": -31006,
-    "message": "Flow error",
+    "code": -31020,
+    "message": "Issuer not entitled",
     "data": {
-      "reason": "untrusted_issuer",
       "retryable": false,
       "findings": [{"code": "attestation_type_not_registered", "credential_type": "https://credentials.example.com/identity"}]
     }
@@ -869,7 +874,7 @@ The members below are optional extension members in the sense of WMP Core Sectio
 | `response_jwe` | `sign` result (`sign_presentation`, `response_mode` `direct_post.jwt` only) | string | 7.7 | 0.1.0 |
 | `credentials[].notification_id`, `notification_endpoint` | `oid4vci` completion result | string | 3.1.4, 3.4 | 0.1.0 |
 | `issuer_entitlement_evaluated`, `issuer`, `issuer_entitlement` | `trust_evaluated` progress payload of an `oid4vci` flow | boolean, string, object | 7.8 | 0.1.0 |
-| `findings` | `data` of the `wmp.flow.error` that refuses an `oid4vci` flow for an untrusted issuer | object[] | 3.1.6, 7.8 | 0.1.0 |
+| `findings` | `data` of the `-31020` `wmp.flow.error` that refuses an `oid4vci` flow for an issuer that is not entitled | object[] | 3.1.6, 7.8 | 0.1.0 |
 
 ### 7.1 `client_metadata`
 
@@ -1005,7 +1010,7 @@ The payload has `issuer_entitlement_evaluated` `true`, `issuer` (the credential 
 
 A finding is `{"code": "<code>", "credential_type": "<type>"}`. `code` is a short identifier (lowercase letters, digits and `_`, at most 64 characters); a wallet maps a code it does not know to a generic message. `credential_type` is OPTIONAL: the offered `vct` or doctype the finding is about, at most 256 characters. The codes defined here: `no_access_certificate`, `access_certificate_not_wrpac`, `no_registration_certificate`, `registration_certificate_malformed`, `registration_certificate_expired`, `registration_certificate_validity_too_long`, `registration_certificate_not_bound`, `not_an_attestation_provider`, `attestation_type_not_registered`. A finding carries no free text: the orchestrator MUST NOT put the issuer's metadata, the text of a certificate or an error message into it, and a wallet shows its own text for a code. A finding that has a `message` member is non-conforming (`schema/methods/issuer-entitlement.json` refuses it), whatever else it carries. All values originate from the issuer and a registration certificate, so a wallet treats them as untrusted data (it does not render them as markup, and bounds what it stores).
 
-The orchestrator sends the progress when it has findings, before it refuses (Section 3.1.6) or continues. In `fail` mode a finding refuses the flow; in `warn` mode the flow continues and the wallet SHOULD show the findings before the user accepts the offer.
+The orchestrator sends the progress when it has findings, before it refuses (Section 3.1.6, `-31020`) or continues. In `fail` mode a finding refuses the flow; in `warn` mode the flow continues and the wallet SHOULD show the findings before the user accepts the offer.
 
 ```json
 {
