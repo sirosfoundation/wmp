@@ -1723,8 +1723,8 @@
               "vct": "urn:example:vct"
             }
           ],
-          "refresh_token": "rt-secret-3",
-          "dpop_jwk": "{\"kty\":\"EC\",\"d\":\"s\"}"
+          "refresh\u005ftoken": "rt-secret-3",
+          "dpop\u005fjwk": "{\"kty\":\"EC\",\"d\":\"s\"}"
         }
       }
     },
