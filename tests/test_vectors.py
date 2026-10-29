@@ -188,7 +188,7 @@ class CredentialNotificationVectors(unittest.TestCase):
                 self.assertEqual(list(sign.iter_errors({"dpop_proof": "x"})), [], v["id"])
                 self.assertEqual({"action", "parent_flow_id", "htm", "htu", "ath", "dpop_nonce", "key_id"},
                                  set(p["params"]), v["id"])
-        self.assertGreaterEqual(seen, 12)
+        self.assertGreaterEqual(seen, 13)
 class IssuerEntitlementVectors(unittest.TestCase):
     """The issuer-entitlement vectors (OpenID4x 7.8, 3.1.6) match their schema."""
 

@@ -410,7 +410,9 @@ class CredentialNotification(unittest.TestCase):
         self.assertNotEqual(list(result.iter_errors({"reason": "busy", "retryable": True})), [])
         self.assertNotEqual(list(err.iter_errors(ok_result)), [])
         for ok in ({"reason": "busy", "retryable": True}, {"reason": "context_unavailable", "retryable": False},
-                   {"reason": "signing_failed", "retryable": False}, {"reason": "forward_failed", "retryable": False}):
+                   {"reason": "signing_failed", "retryable": False}, {"reason": "forward_failed", "retryable": False},
+                   # Core 6.2: the flow's own timeout
+                   {"reason": "timeout", "retryable": False}):
             self.assertEqual(list(err.iter_errors(ok)), [], ok)
         for bad in ({"reason": "mismatch", "retryable": False}, {"reason": "busy"},
                     {"reason": "busy", "retryable": 1},
@@ -418,7 +420,8 @@ class CredentialNotification(unittest.TestCase):
                     {"reason": "busy", "retryable": False},
                     {"reason": "context_unavailable", "retryable": True},
                     {"reason": "signing_failed", "retryable": True},
-                    {"reason": "forward_failed", "retryable": True}):
+                    {"reason": "forward_failed", "retryable": True},
+                    {"reason": "timeout", "retryable": True}):
             self.assertNotEqual(list(err.iter_errors(bad)), [], bad)
 
     def test_unknown_members_are_ignored_not_refused(self):

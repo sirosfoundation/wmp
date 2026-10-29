@@ -683,6 +683,7 @@ The orchestrator validates `params` before it starts the flow, and refuses inval
 | `busy` | `true` | The orchestrator is at its limit for notifications it forwards at once. The context is kept; the wallet MAY start the flow again, with a new `flow_id` |
 | `signing_failed` | `false` | The wallet did not return a DPoP proof: it declined, failed or did not answer within the orchestrator's timeout |
 | `forward_failed` | `false` | The issuer could not be reached or answered with a status other than 200 or 204 |
+| `timeout` | `false` | The flow's own `timeout` (Core Section 6.2) expired before it ended, for example during signing or forwarding. This is the reason Core requires; the other reasons never apply once it has expired |
 
 `message` and `data` carry nothing taken from the issuer or the wallet: no issuer response, no text of a sub-flow error. A notification is best effort (OpenID4VCI Section 11): a wallet MUST NOT treat any of these as a failure of the issuance, and SHOULD NOT start the flow again except after `busy`.
 

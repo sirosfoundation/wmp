@@ -3409,5 +3409,29 @@
     },
     "expected_response": null,
     "notes": "Two notification flows, one per id, are accepted; a second flow for nid-a finds nothing (context_unavailable)."
+  },
+  {
+    "id": "flow-credential-notification-error-timeout",
+    "description": "Terminal error of a credential_notification flow whose own timeout expired (Core 6.2, OpenID4x 3.4.2).",
+    "conformance_level": "flows",
+    "input": {
+      "jsonrpc": "2.0",
+      "method": "wmp.flow.error",
+      "params": {
+        "wmp": {
+          "version": "0.1",
+          "session_id": "ses-a1b2c3d4"
+        },
+        "flow_id": "flow-cn-001",
+        "code": -31006,
+        "message": "Flow error",
+        "data": {
+          "reason": "timeout",
+          "retryable": false
+        }
+      }
+    },
+    "expected_response": null,
+    "notes": "The reason Core requires when the wmp.flow.start timeout expires, for example during signing or forwarding."
   }
 ]
