@@ -5,9 +5,9 @@ description: >-
 url: https://wmp.name
 baseurl: ""
 
-repo_url: https://github.com/leifj/wmp
-schema_url: https://github.com/leifj/wmp/tree/main/schema
-vectors_url: https://github.com/leifj/wmp/tree/main/vectors
+repo_url: https://github.com/sirosfoundation/wmp
+schema_url: https://github.com/sirosfoundation/wmp/tree/main/schema
+vectors_url: https://github.com/sirosfoundation/wmp/tree/main/vectors
 
 # We do NOT use the cayman remote theme — custom layouts + SCSS.
 plugins:
