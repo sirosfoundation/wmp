@@ -1,7 +1,7 @@
 # WMP docs site (Jekyll)
 
 This directory is the source for the site published to GitHub Pages at
-<https://leifj.github.io/wmp/>. It's a plain Jekyll site with custom
+<https://wmp.name/>. It's a plain Jekyll site with custom
 layouts and SCSS — the previous `cayman` remote theme has been removed.
 
 ## How to deploy
