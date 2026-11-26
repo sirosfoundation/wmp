@@ -238,6 +238,8 @@ The following fields remain in plaintext (in the outer JSON-RPC envelope, for ro
 - `wmp.epoch`
 - `wmp.sender`
 - `plaintext_hash` (optional salted commitment to the plaintext, [wmp-core.md](wmp-core.md) §5.2.1) — it must stay outside the ciphertext so that relays and evidence generators can cover it with their signatures and hashes
+- `consignment_mode` ([wmp-core.md](wmp-core.md) §3.5) — the relay/QTSP must read it to drive the consignment flow (the acceptance gate, the notification steps), and it cannot decrypt the ciphertext; a mode buried in the encrypted content is invisible to the only party that acts on it
+- `recipient_assurance_level` ([wmp-core.md](wmp-core.md) §3.5.1) — the relay/QTSP enforces it before delivery; the same visibility requirement
 
 ## 5. Delivery Service
 
