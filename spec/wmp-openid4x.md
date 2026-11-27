@@ -1051,3 +1051,19 @@ The orchestrator sends the progress when it has findings, before it refuses (Sec
 - [OpenID for Verifiable Presentations 1.0](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html)
 - [Verifiable Credential Type Metadata](https://www.ietf.org/archive/id/draft-ietf-oauth-sd-jwt-vc-05.html)
 - [EC TS12: Specification of Strong Customer Authentication (SCA) Implementation with the Wallet, v1.0.1](https://github.com/eu-digital-identity-wallet/eudi-doc-standards-and-technical-specifications/blob/main/docs/technical-specifications/ts12-electronic-payments-SCA-implementation-with-wallet.md)
+
+### 7.9 The Audience of a Presentation (`aud`)
+
+The key binding JWT's `aud` and the JARM's `aud` name **who the presentation is for**. OpenID4VP 1.0 binds both to the request's `client_id`: whatever the `client_id` carries, that is the audience. This section fixes the meaning for the two contexts the profile serves.
+
+**A direct verifier interaction.** The audience is the verifier. The `client_id` carries the verifier's identifier under the scheme the request authenticated — the `x509` schemes bind the certificate, the DID schemes bind the resolved keys, the attestation binds the confirmation key — and the `aud` names the verifier. This is the binding OpenID4VP's replay protection intends: the presentation is for this verifier and no other.
+
+**A relayed acceptance presentation** (the consignment flow, where the recipient's acceptance gate correlates the presentation to the session). The party the presentation is for is the **consignment group** — the MLS group the session runs in — not the verifier's transport identity. The `client_id` may then name the group, and the `aud` names the group with it. The verifier's authenticity is **not** carried by the `client_id` in this shape: it stays where the protocol already puts it — the request object's signature against its certificate chain, and the verifier trust evaluation (Section 7.4) — and the `client_id`'s scheme carries no key binding of its own. The audience identifier only needs to be unambiguous: a name for the group that cannot be mistaken for a verifier identity, a DNS name, or a certificate hash.
+
+The options an acceptance mint has for the `client_id`:
+
+1. **The verifier's own `client_id`** (any authenticated scheme), with the session correlation riding the `nonce` — the session's challenge. No changes anywhere: the gate reads the nonce. The correlation is as strong as the challenge (unguessable, delivered only through the consignment mint).
+2. **A `client_id` scheme that names the group** — the audience identifier is the MLS group the consignment runs in. No key binding is required and none is performed: the group is an audience, not a key source; the request's signature and trust evaluation are unchanged. A wallet MUST NOT weaken the verifier's authentication for this shape.
+3. **`did:mls`** ([wmp-mls.md](wmp-mls.md) Section 9) — the mechanism for option 2: the group's own identifier (`group_id`, RFC 9420's GroupId, base64url) in a DID form. A naming method: no resolution, no DID document, no key material — the ecosystem's client_id scheme syntax carrying the one identifier that cannot be misunderstood.
+
+In every option the request object's signature, the certificate chain, and the verifier trust evaluation (Section 7.4) are unchanged; the options differ only in what the `aud` names, never in how the verifier is authenticated.
