@@ -379,3 +379,35 @@ This impacts MLS KeyPackage sizes, Welcome messages, and Commit messages. Implem
 ### 8.5 Timestamp and Evidence Implications
 
 RFC 3161 timestamp tokens and evidence signatures (see [wmp-evidence.md](wmp-evidence.md)) must also transition to PQC algorithms. Since these are long-lived artifacts (potentially retained for years for legal evidence), the transition to PQC for evidence signing is MORE urgent than for ephemeral MLS encryption. Implementations SHOULD adopt hybrid evidence signatures in Phase 2.
+
+## 9. The `did:mls` Method — the Group as an Audience Identifier
+
+### 9.1 The Method
+
+The method name is `mls`. The identifier is:
+
+```
+did:mls:<group_id>
+```
+
+where `<group_id>` is the group identifier this specification already defines (Section 3.1's `group_id`, the base64url-encoded MLS GroupId). The method-specific identifier is exactly the group's own identifier — no transformation, no namespace, no additional structure.
+
+`did:mls` is a **naming method**: it names the MLS group an artifact is addressed to, inside a `client_id` scheme the OpenID4VP ecosystem already parses. It requires **no DID document, no resolution, and carries no key material**. The verifier's authenticity in a request whose `client_id` is a `did:mls` identifier is established exactly as for any other request — the request object's signature against its certificate chain and the verifier trust evaluation ([wmp-openid4x.md](wmp-openid4x.md) Section 7.4) — and never through the DID.
+
+### 9.2 The Audience Binding
+
+In an acceptance presentation whose request carries `client_id = did:mls:<group_id>`, the wallet's key binding JWT carries `aud = did:mls:<group_id>` (OpenID4VP 1.0 binds the key binding JWT's `aud` to the request's `client_id`): the presentation is **for the group**. The recipient's acceptance gate reads the `aud` and correlates the presentation to the consignment group unambiguously — the group identifier cannot be mistaken for a verifier identity, a DNS name, or a certificate hash, because the method name says what it is.
+
+### 9.3 Why No Resolution
+
+The protocol already verifies everything that needs verifying:
+
+- the request's signature — the certificate chain in the request object's `x5c` header, verified before any client_id scheme processing;
+- the verifier's trust — the policy evaluation over the verified chain;
+- the group's membership and keys — the MLS layer's own machinery (KeyPackages, credentials, epochs — Sections 2 and 3).
+
+A DID-document key resolution would duplicate none of this. The identifier is a name; the keys are elsewhere; the layer that needs them already has them. A wallet MUST NOT attempt to resolve a `did:mls` identifier, and a resolver MUST NOT be required to answer it.
+
+### 9.4 The Session–Group Mapping
+
+A consignment session (`ses-…`, WMP Core's session identifier) runs in exactly one MLS group. The relay that hosts the session knows the mapping. A wallet that needs to know which group a session's presentations belong to learns it from the flow, not from the identifier: the `aud` names the group directly, and the session correlation rides the `nonce` (the session's challenge) beside it.
